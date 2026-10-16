@@ -30,7 +30,6 @@ jobs:
     timeout-minutes: 25
     env:
       PR: ${{ github.event.pull_request.number || inputs.pr }}
-      GH_TOKEN: ${{ github.token }}
       HAS_KEY: ${{ secrets.OPENROUTER_API_KEY != '' }}
     steps:
       - name: Check for the OpenRouter key
@@ -42,8 +41,11 @@ jobs:
         if: steps.key.outputs.ok == 'true'
         with:
           fetch-depth: 0
+          persist-credentials: false   # keep the token out of .git/config, which the model can read
       - name: Check out the PR head (manual runs)
         if: steps.key.outputs.ok == 'true' && github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: gh pr checkout "$PR"
       - name: Ponytail review
         if: steps.key.outputs.ok == 'true'
@@ -53,9 +55,8 @@ jobs:
           # anthropic_api_key to start, and these route every request to OpenRouter.
           ANTHROPIC_BASE_URL: https://openrouter.ai/api
           ANTHROPIC_AUTH_TOKEN: ${{ secrets.OPENROUTER_API_KEY }}
-          ANTHROPIC_DEFAULT_OPUS_MODEL: "~anthropic/claude-opus-latest"
-          ANTHROPIC_DEFAULT_SONNET_MODEL: "~anthropic/claude-sonnet-latest"
-          ANTHROPIC_DEFAULT_HAIKU_MODEL: "~anthropic/claude-haiku-latest"
+          # Pinned slugs (AGENTS.md §3): "latest" aliases would change verdicts with no commit.
+          ANTHROPIC_DEFAULT_HAIKU_MODEL: anthropic/claude-haiku-5.5   # Claude Code's background model
           PONYTAIL_DEFAULT_MODE: full
         with:
           anthropic_api_key: ${{ secrets.OPENROUTER_API_KEY }}
@@ -68,11 +69,21 @@ jobs:
             and "Nit", each with file:line and a one-line reason. The last line must be exactly
             `VERDICT: PASS` if there are no "Must fix" findings, otherwise `VERDICT: FAIL`.
           claude_args: |
+            --model anthropic/claude-sonnet-5.5
             --max-turns 40
             --allowedTools Skill,Read,Grep,Glob,Write,Bash(git diff:*),Bash(git log:*),Bash(git show:*)
       - name: Post findings as a sticky comment
         if: steps.key.outputs.ok == 'true' && always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
+          # The report is model-written and goes to a public comment; GitHub masks secrets in
+          # logs, not in comments. Refuse to post anything that contains one.
+          if [[ -f ponytail-report.md ]] && { grep -qF "$KEY" ponytail-report.md || grep -qF "$GH_TOKEN" ponytail-report.md; }; then
+            echo "::error::Report contains a secret; not posting it"
+            exit 1
+          fi
           if [[ ! -s ponytail-report.md ]]; then
             printf 'Ponytail review produced no report. See the run log: %s\n' \
               "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > ponytail-report.md
@@ -83,6 +94,6 @@ jobs:
       - name: Gate on the verdict
         if: steps.key.outputs.ok == 'true'
         run: |
-          verdict="$(tail -n 1 ponytail-report.md | tr -d '\r')"
+          verdict="$(tr -d '\r' < ponytail-report.md | grep -E '^VERDICT: (PASS|FAIL)$' | tail -n 1)"
           echo "$verdict" | tee -a "$GITHUB_STEP_SUMMARY"
           [[ "$verdict" == "VERDICT: PASS" ]]

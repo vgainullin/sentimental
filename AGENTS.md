@@ -11,6 +11,7 @@ Install from the official sources only: `DietrichGebert/ponytail` on GitHub or `
 | Agent | Install |
 |---|---|
 | Claude Code | Preconfigured in `.claude/settings.json`; accept the prompt when you trust the folder. Manual: `/plugin marketplace add DietrichGebert/ponytail` then `/plugin install ponytail@ponytail` |
+| Claude cloud sessions (web, mobile app, `--cloud`) | Plugins don't load there. Upload upstream `skills/{ponytail,ponytail-review,ponytail-audit,ponytail-debt}` as claude.ai skills (Settings → Capabilities → Skills); cloud sessions load enabled skills automatically. No hooks, so no `/ponytail <level>` switching; the `ponytail` workflow still reviews every PR |
 | Codex | `codex plugin marketplace add DietrichGebert/ponytail` then `codex plugin add ponytail@ponytail`; trust both hooks in `/hooks`; start a new thread |
 | Anything else | Load `skills/ponytail/SKILL.md` as a skill, or vendor upstream `AGENTS.md` as `.agents/ponytail.md` and read it before this file. Per-agent steps: upstream `INSTALL.md` |
 

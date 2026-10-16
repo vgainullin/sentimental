@@ -147,3 +147,30 @@ Commits: 7e2844e
 - Cloud sessions cannot switch levels through hooks (by design).
 - Open the PR for `ci/ponytail-review`: it carries the CI gate, its docs, and this `AGENTS.md` row.
 - Set `OPENROUTER_API_KEY`.
+
+## Ponytail skills vendored
+
+Commits: 6857b08..6d786fa
+
+### Changed
+- `6857b08`: upstream Ponytail skills `ponytail`, `ponytail-review`, `ponytail-audit`, `ponytail-debt` copied unchanged into `.claude/skills/<name>/`, each with `SKILL.md` and the MIT `LICENSE`. The `AGENTS.md` §0 cloud-sessions row now reads "nothing to install"; level is fixed at `full` there.
+- `702e733`: `ponytail.yml` no longer installs plugin `ponytail@ponytail` from the upstream marketplace, which was unpinned `HEAD`. It asks for the committed `/ponytail-review` skill.
+- `6d786fa`: `docs/wiki/` Decisions (new row), Known-Pitfalls (base-branch `.claude/` restore, duplicate local load, `shortcut:` update procedure) and Runbook ("produced no report" row).
+
+### Why
+- Reversal of "Ponytail loaded as a plugin, not vendored" ([Agent setup](#agent-setup)) and of the claude.ai-skills choice ([Ponytail in cloud sessions](#ponytail-in-cloud-sessions)). The user chose to commit the skills after learning that cloud sessions (web, mobile) load repo skills but not plugins. The plugin stays enabled in `.claude/settings.json` for local hooks.
+- This also closes the CI supply-chain gap from the best-practices research: CI fetched unpinned upstream code. The review now runs a copy pinned by this repo's history.
+
+### Results
+- `cmp`: each of the four `SKILL.md` is byte-identical to upstream `84740e3`.
+- actionlint clean; 32 pytest pass (local, `ci/ponytail-review`).
+
+### Negative results
+- none
+
+### Open
+- Unverified: that cloud sessions pick up the committed skills (test in a new mobile session), and that the CI run works end to end.
+- Reasoned, not run: claude-code-action restores `.claude/` from the base branch on PRs, so a PR cannot alter the skill that reviews it. As a result, this PR's own Ponytail run would not find the skill, because `main` does not have it yet. The first effective run is the next PR after merge.
+- Locally the skills load twice (plugin and repo), with the same text (reasoned).
+- `shortcut:` vendored snapshot of `84740e3`; the update procedure is in `docs/wiki/Known-Pitfalls.md`.
+- Superseded: "user uploads the four skill zips" is no longer needed for this repo. Uploading stays optional for other repos.

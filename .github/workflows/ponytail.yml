@@ -1,6 +1,7 @@
 name: ponytail
 # AGENTS.md §0/§11: every diff gets /ponytail-review, and "must fix" findings block the merge.
-# Runs Claude Code (claude-code-action) through OpenRouter with the Ponytail plugin installed,
+# Runs Claude Code (claude-code-action) through OpenRouter with the Ponytail skills committed in
+# .claude/skills/ (pinned by this repo's history, not fetched from upstream),
 # posts the findings as one sticky PR comment, and fails the check on VERDICT: FAIL.
 on:
   pull_request:
@@ -59,10 +60,8 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.OPENROUTER_API_KEY }}
           github_token: ${{ github.token }}
-          plugin_marketplaces: https://github.com/DietrichGebert/ponytail.git
-          plugins: ponytail@ponytail
           prompt: |
-            Run the Ponytail review skill (/ponytail:ponytail-review) on pull request
+            Run the Ponytail review skill (/ponytail-review, in .claude/skills/) on pull request
             ${{ github.repository }}#${{ env.PR }}. The diff is `git diff origin/${{ github.base_ref || 'main' }}...HEAD`.
             Follow AGENTS.md. Do not change any file except ponytail-report.md.
             Write the findings to ponytail-report.md in markdown, grouped as "Must fix", "Should fix",

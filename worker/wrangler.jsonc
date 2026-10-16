@@ -1,0 +1,12 @@
+{
+  // Deployed by .github/workflows/deploy-worker.yml. SEARCH_TOKEN is set as a secret there.
+  "name": "math-style-search",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-01",
+  "ai": { "binding": "AI" },
+  "vectorize": [
+    // 768 dims (bge-base), cosine; metadata indexes on author (string) and year (number)
+    { "binding": "VECTORIZE", "index_name": "math-style-chunks" }
+  ],
+  "observability": { "enabled": true }
+}

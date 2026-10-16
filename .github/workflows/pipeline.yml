@@ -101,8 +101,11 @@ jobs:
             msp --shard "$KEY" "$stage"
             echo "::endgroup::"
           done
-      - name: Save shard state to R2
+      - name: Save downloads to R2
         if: always()                # keep paid API responses even if a stage failed
+        run: msp --shard "$KEY" sync r2-push --new-only    # never replace with partial state
+      - name: Save shard tables to R2
+        if: success()               # only a complete run may replace tables in R2
         run: msp --shard "$KEY" sync r2-push --overwrite   # tables change every run
       - name: Summary
         if: always()

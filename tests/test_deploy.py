@@ -1,5 +1,6 @@
 """Offline tests for sharding, storage sync, Vectorize upload, and the CLI docs."""
 
+import hashlib
 import json
 import math
 
@@ -75,14 +76,21 @@ class FakeS3:
         start = int(ContinuationToken or 0)
         page = keys[start : start + 2]  # tiny pages exercise pagination
         out = {
-            "Contents": [{"Key": k, "Size": len(self.objects[k])} for k in page],
+            "Contents": [
+                {
+                    "Key": k,
+                    "Size": len(self.objects[k]),
+                    "ETag": f'"{hashlib.md5(self.objects[k]).hexdigest()}"',
+                }
+                for k in page
+            ],
             "IsTruncated": start + 2 < len(keys),
         }
         if out["IsTruncated"]:
             out["NextContinuationToken"] = str(start + 2)
         return out
 
-    def upload_file(self, path, bucket, key):
+    def upload_file(self, path, bucket, key, Config=None):
         self.objects[key] = open(path, "rb").read()
 
     def download_file(self, bucket, key, path):
@@ -115,6 +123,27 @@ def test_r2_push_pull_roundtrip(tmp_path):
     assert (dst / "a/tables/papers.parquet").read_bytes() == b"P" * 11
     assert not (dst / "a/pdf").exists()
     assert len(r2.pull("shards/a", tmp_path / "all")) == 3
+
+
+def test_r2_detects_same_size_changes(tmp_path):
+    from msp.storage import R2
+
+    f = tmp_path / "src/tables/papers.parquet.meta.json"
+    f.parent.mkdir(parents=True)
+    f.write_bytes(b'{"sha256": "aaaa"}')
+    r2 = R2("bucket", client=FakeS3())
+    r2.push(tmp_path / "src", "shards/a")
+    f.write_bytes(b'{"sha256": "bbbb"}')  # same size, new content
+    with pytest.raises(FileExistsError):
+        r2.push(tmp_path / "src", "shards/a")
+    assert len(r2.push(tmp_path / "src", "shards/a", new_only=True)) == 0  # failure path
+    assert r2.s3.objects["shards/a/tables/papers.parquet.meta.json"] == b'{"sha256": "aaaa"}'
+    assert len(r2.push(tmp_path / "src", "shards/a", overwrite=True).replace) == 1
+    dst = tmp_path / "dst/tables/papers.parquet.meta.json"
+    dst.parent.mkdir(parents=True)
+    dst.write_bytes(b'{"sha256": "cccc"}')  # same size, stale local copy
+    assert len(r2.pull("shards/a", tmp_path / "dst", overwrite=True).replace) == 1
+    assert dst.read_bytes() == b'{"sha256": "bbbb"}'
 
 
 def _embedded_cfg(tmp_path, model="BAAI/bge-base-en-v1.5"):
@@ -290,3 +319,22 @@ def test_provenance_sidecar(tmp_path):
     assert meta["sha256"] == file_sha256(path) and meta["rows"] == 1 and meta["seed"] == 7
     assert meta["inputs"] == {"papers": file_sha256(cfg.table("papers")), "nope": None}
     assert meta["params"] == {"chunk_tokens": 250} and meta["git_sha"]
+
+
+def test_write_table_is_atomic(tmp_path, monkeypatch):
+    from msp.provenance import write_table
+
+    cfg = Config(data_dir=tmp_path)
+    cfg.ensure_dirs()
+    good = write_table(cfg, "papers", pd.DataFrame({"paper_id": ["W1"]}))
+    before = good.read_bytes()
+
+    def killed(self, f, **kw):
+        f.write(b"PAR1 half a table")
+        raise KeyboardInterrupt  # job cancelled mid-write
+
+    monkeypatch.setattr(pd.DataFrame, "to_parquet", killed)
+    with pytest.raises(KeyboardInterrupt):
+        write_table(cfg, "papers", pd.DataFrame({"paper_id": ["W2"]}))
+    assert good.read_bytes() == before  # old table intact
+    assert not list(good.parent.glob("*.part"))  # no stray temp file

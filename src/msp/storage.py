@@ -11,6 +11,7 @@ Credentials come from the environment only:
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
 from collections.abc import Callable
@@ -31,6 +32,28 @@ def _env(name: str) -> str:
 
 
 # ------------------------------------------------------------------ R2
+SINGLE_PART_MAX = 4 * 1024**3  # R2 single PUT limit is ~5 GiB; single-part ETags are MD5s
+
+
+def _md5(path: Path) -> str:
+    h = hashlib.md5(usedforsecurity=False)
+    with path.open("rb") as f:
+        for block in iter(lambda: f.read(1 << 20), b""):
+            h.update(block)
+    return h.hexdigest()
+
+
+def _differs(local: Path, size: int, etag: str) -> bool:
+    """True if the local file and the object differ in content, not just size."""
+    if local.stat().st_size != size:
+        return True
+    if not etag or "-" in etag:
+        # shortcut: multipart or missing ETag falls back to size; we upload single-part
+        # (SINGLE_PART_MAX), so only objects written by other tools hit this.
+        return False
+    return _md5(local) != etag
+
+
 @dataclass
 class SyncPlan:
     new: list[tuple[Any, Any]] = field(default_factory=list)
@@ -55,7 +78,8 @@ class R2:
             )
         self.s3 = client
 
-    def list(self, prefix: str) -> dict[str, int]:
+    def list(self, prefix: str) -> dict[str, tuple[int, str]]:
+        """Key -> (size, ETag without quotes)."""
         out, token = {}, None
         while True:
             kw = {"Bucket": self.bucket, "Prefix": prefix}
@@ -63,7 +87,7 @@ class R2:
                 kw["ContinuationToken"] = token
             page = self.s3.list_objects_v2(**kw)
             for o in page.get("Contents", []):
-                out[o["Key"]] = o["Size"]
+                out[o["Key"]] = (o["Size"], str(o.get("ETag", "")).strip('"'))
             if not page.get("IsTruncated"):
                 return out
             token = page["NextContinuationToken"]
@@ -102,21 +126,21 @@ class R2:
         overwrite: bool = False,
         dry_run: bool = False,
     ) -> SyncPlan:
-        """Download objects under prefix that are missing locally or differ in size.
+        """Download objects under prefix that are missing locally or differ in content.
 
         `include` holds fnmatch patterns relative to prefix, e.g. ("*/tables/*",)
         to fetch every shard's tables but no PDFs. Replacing a local file needs `overwrite`.
         """
         prefix = prefix.strip("/") + "/" if prefix.strip("/") else ""
         plan = SyncPlan()
-        for key, size in self.list(prefix).items():
+        for key, (size, etag) in self.list(prefix).items():
             rel = key[len(prefix) :]
             if include and not any(fnmatch(rel, pat) for pat in include):
                 continue
             dest = Path(local) / rel
             if not dest.exists():
                 plan.new.append((key, dest))
-            elif dest.stat().st_size != size:
+            elif _differs(dest, size, etag):
                 plan.replace.append((key, dest))
 
         def get(item: tuple[Any, Any]) -> None:
@@ -134,8 +158,13 @@ class R2:
         exclude_dirs: tuple[str, ...] = (),
         overwrite: bool = False,
         dry_run: bool = False,
+        new_only: bool = False,
     ) -> SyncPlan:
-        """Upload files that are missing remotely or differ in size. Replacing needs `overwrite`."""
+        """Upload files missing remotely or differing in content. Replacing needs `overwrite`.
+
+        `new_only` uploads missing files and leaves changed ones alone: safe after a
+        failed or cancelled run, whose tables may be partial.
+        """
         prefix = prefix.strip("/") + "/" if prefix.strip("/") else ""
         remote = self.list(prefix)
         plan = SyncPlan()
@@ -147,12 +176,19 @@ class R2:
             key = prefix + f.relative_to(local).as_posix()
             if key not in remote:
                 plan.new.append((f, key))
-            elif remote[key] != f.stat().st_size:
+            elif _differs(f, *remote[key]):
                 plan.replace.append((f, key))
+        if new_only and plan.replace:
+            log.warning("new-only: leaving %d changed file(s) in R2 as they are", len(plan.replace))
+            plan.replace = []
+
+        from boto3.s3.transfer import TransferConfig
+
+        single_part = TransferConfig(multipart_threshold=SINGLE_PART_MAX)
 
         def put(item: tuple[Any, Any]) -> None:
             f, key = item
-            self.s3.upload_file(str(f), self.bucket, key)
+            self.s3.upload_file(str(f), self.bucket, key, Config=single_part)
 
         return self._run(plan, put, overwrite, dry_run, f"push r2://{self.bucket}/{prefix}")
 

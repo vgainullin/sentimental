@@ -18,6 +18,9 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+    from typing import BinaryIO
+
     import pandas as pd
 
     from .config import Config
@@ -61,7 +64,21 @@ def _write_meta(
         **extra,
     }
     meta_path = path.with_name(path.name + ".meta.json")
-    meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n")
+    _atomic(
+        meta_path, lambda f: f.write((json.dumps(meta, indent=2, sort_keys=True) + "\n").encode())
+    )
+
+
+def _atomic(path: Path, write: Callable[[BinaryIO], object]) -> None:
+    """Write via a temp file and rename, so a killed job never leaves a partial file."""
+    tmp = path.with_name(path.name + ".part")  # R2 push skips .part files
+    try:
+        with tmp.open("wb") as f:
+            write(f)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
+    tmp.replace(path)
 
 
 def write_table(
@@ -72,7 +89,7 @@ def write_table(
     params: dict[str, Any] | None = None,
 ) -> Path:
     path = cfg.table(name)
-    df.to_parquet(path, index=False)
+    _atomic(path, lambda f: df.to_parquet(f, index=False))
     _write_meta(path, cfg, inputs or [], params, {"rows": len(df), "columns": list(df.columns)})
     return path
 
@@ -84,7 +101,7 @@ def write_array(
     inputs: list[str] | None = None,
     params: dict[str, Any] | None = None,
 ) -> Path:
-    np.save(path, arr)
+    _atomic(path, lambda f: np.save(f, arr))
     _write_meta(
         path, cfg, inputs or [], params, {"shape": list(arr.shape), "dtype": str(arr.dtype)}
     )

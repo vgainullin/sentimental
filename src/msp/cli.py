@@ -89,6 +89,9 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument(
         "--dry-run", action="store_true", help="show what would transfer; change nothing"
     )
+    s.add_argument(
+        "--new-only", action="store_true", help="r2-push: upload missing files, skip changed ones"
+    )
 
     s = cmd("vectorize-upsert", "upload chunk vectors to a Cloudflare Vectorize index")
     s.add_argument("--index", required=True)
@@ -277,7 +280,9 @@ def main(argv: list[str] | None = None) -> None:
         if a.action == "r2-pull":
             storage.R2().pull(prefix, local, tuple(a.include), a.overwrite, a.dry_run)
         elif a.action == "r2-push":
-            storage.R2().push(local, prefix, overwrite=a.overwrite, dry_run=a.dry_run)
+            storage.R2().push(
+                local, prefix, overwrite=a.overwrite, dry_run=a.dry_run, new_only=a.new_only
+            )
         elif a.action == "hf-push":
             for w in a.what:
                 src = cfg.table_dir if w == "tables" else cfg.emb_dir

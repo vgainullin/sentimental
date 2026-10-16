@@ -94,3 +94,45 @@ Commits: 8733a79..677ec18
 - Create one placeholder wiki page, then rerun `wiki`.
 - Set secrets with `scripts/bootstrap_secrets.sh`, then run `deploy-worker` for real.
 - `wiki.yml` trigger path is `msp/cli.py`, but the file is `src/msp/cli.py`, so CLI changes alone will not republish the wiki (reasoned from the diff, not run).
+
+## Review must-fix fixes
+
+Commits: a61eba3..2620202 (branch `fix/review-must-fix`, not merged). Also on `main` since the last entry: `d4bfa2a` (`wiki.yml` watches `src/msp/cli.py`), `7cc72df` (Dependabot uses the uv ecosystem so `uv.lock` is updated).
+
+### Changed
+- Review of `main` at `5e5f695`: three parallel read-only reviews (Python pipeline; workflows, GPU and Worker; tests against contracts). The main agent checked all five must-fix findings in the code before fixing them. One commit per fix.
+- `a61eba3` GPU reaper (`scripts/lambda_gpu.py`, `reap-gpus.yml`, `pipeline.yml`, `embed-lambda.yml`): a run GitHub cannot find counts as finished. Any other lookup failure exits non-zero after reaping what it can. Instances are named `msp-embed-<run>-<epoch>` and are reaped once older than `--max-age` (default 4 h), whatever their status. `--finished-run` lets the pipeline's `reap` job kill its own instance. On failure, `reap-gpus` opens or updates a `gpu-reaper-failure` issue, and `on-failure` now needs `reap`.
+- `94a7cf6` R2 (`storage.py`, `provenance.py`, `cli.py`, `pipeline.yml`): sync compares MD5 with single-part ETags, not size alone; uploads are forced single-part up to 4 GiB. The failure path pushes `--new-only`, and tables are pushed with `--overwrite` only on `success()`. `write_table`, `write_array` and sidecars write to `.part` and then rename.
+- `5eca370` Linking (`harvest.py`, `citations.py`, `Data-Contracts.md`): a harvest title link needs both years known, and a merged group's years may span at most one (no 1960→1961→1962 chains). Citation title matching uses `token_sort_ratio` and needs both years known and within one.
+- `2620202` HTTP (`http.py`, `parse.py`): API keys are redacted from logs and error messages. A dropped download stream or a GROBID timeout fails one paper, not the shard. TEI is written atomically.
+
+### Why
+- Reaper: a lookup error used to look the same as "run still active", so GPUs could bill indefinitely. The age cap is the backstop if a runner dies before it reaps.
+- R2: comparing size alone missed same-size content changes, and an always-run `--overwrite` let a failed run replace good tables with partial state.
+- Linking: `token_set_ratio` scores 100 when one title's words are a subset of the other's. Unknown years, and chained ±1 links, merged distinct papers.
+- HTTP: keys could leak into logs and failure issues, and one network error lost a whole shard.
+
+### Results
+- Each commit passes ruff, `mypy --strict` and pytest on its own. On `2620202`: 47 pytest pass (up from 32) and 5 Worker tests pass (local, offline).
+- The new linking and HTTP tests fail on the pre-fix code (confirmed by running them).
+- Mutation run: 9 of 41 single-line mutations were caught by tests. Reported by a reviewer, not re-run (unverified).
+
+### Negative results
+- Requiring known years drops title links for records without a year. This trades recall for precision; the recall loss was not measured.
+- Ponytail was not available, so `AGENTS.md` §2 was applied by hand. `/ponytail-review` was not run.
+
+### Open
+- Should-fix findings not done:
+  - The HTTP cache never expires.
+  - Rate limits are per process, so 8 parallel shards exceed arXiv's policy.
+  - `norm_title` drops non-ASCII characters.
+  - Provenance lacks the lockfile hash, model revisions, a dirty-tree flag, and merge inputs.
+  - A GROBID non-200 still falls back to PyMuPDF, contrary to the no-fallback decision.
+  - Network-error retries have no backoff.
+  - The Vectorize index name has drifted.
+  - Deploy uses `|| true`.
+  - Secrets are set at workflow level.
+  - Actions are not SHA-pinned.
+  - Tests for profile, NaN handling and merge keys are weak.
+  - MSC entropy is documented but not implemented.
+- Unverified: no live run (secrets unset), no workflow run on this branch, and actionlint not run locally.

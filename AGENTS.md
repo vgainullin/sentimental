@@ -92,6 +92,7 @@ If Ponytail cannot be installed in the current environment, state that at the to
 
 - Conventional Commits (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`). Imperative mood, ≤ 72-char subject.
 - One logical change per commit. Diff stays as small as the task allows.
+- Agent-authored commits: one-line subject, no body, then trailers `Model:` (exact model id), `Effort:` (reasoning effort), `Tokens:` (input with cached share, output, for that change), then the attribution trailers.
 - PR description: what changed, why, how it was verified, what was not checked.
 
 ## 9. Agent output style

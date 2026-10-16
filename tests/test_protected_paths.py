@@ -25,6 +25,8 @@ def test_gate_files_are_held():
         ".claude/settings.json",
         "AGENTS.md",
         "CLAUDE.md",
+        "pyproject.toml",
+        ".pre-commit-config.yaml",
         "scripts/protected_paths.sh",
     ]
     assert held(*gate) == gate
@@ -42,6 +44,11 @@ def test_ordinary_files_merge():
         )
         == []
     )
+
+
+def test_rename_caught_by_old_name():
+    # autopilot feeds both names of a renamed file; the old name alone must hold the PR
+    assert held("docs/old/AGENTS.md", "AGENTS.md") == ["AGENTS.md"]
 
 
 def test_empty_diff():

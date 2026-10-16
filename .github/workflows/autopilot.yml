@@ -58,7 +58,9 @@ jobs:
         env:
           PR: ${{ steps.pr.outputs.number }}
         run: |
-          held="$(gh pr diff "$PR" --name-only | bash scripts/protected_paths.sh)"
+          # Old and new names, so moving a gate file out of the way is still caught.
+          held="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --paginate \
+                    -q '.[] | .filename, (.previous_filename // empty)' | bash scripts/protected_paths.sh)"
           if [[ -n "$held" ]]; then
             # shellcheck disable=SC2016  # backticks are a literal markdown fence
             printf 'Autopilot: not auto-merging. These files define the checks, so a human merges:\n\n```\n%s\n```\n' \

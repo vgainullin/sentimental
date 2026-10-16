@@ -31,6 +31,10 @@ adds only what is specific to this project. When the two disagree, AGENTS.md win
 - **Workflows never use `pull_request_target`** and never interpolate `${{ inputs.* }}` or `${{ github.event.* }}` into `run:`. Pass them through `env:`.
 - **Don't edit generated pages** (CLI-Reference, Data-Status) or any page in the wiki UI. Edit `docs/wiki/` in the repo.
 
+## Shipping
+
+Push to `agent/<topic>`, never to `main`. `autopilot` opens the PR, and GitHub merges it when CI and the Ponytail review pass. If a check fails, the PR stays open: fix it on the same branch. Changes to gate files (`.github/`, `.claude/`, `AGENTS.md`, `CLAUDE.md`) always wait for a human, so keep them in their own small branch.
+
 ## Extending
 
 - **New source:** a client in `src/msp/sources/` returning `empty_record()`-shaped dicts, a parser test from a recorded fixture plus a malformed-record test, and a rate limit in `Config.rate_limits`.

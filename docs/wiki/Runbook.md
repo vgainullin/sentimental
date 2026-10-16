@@ -31,6 +31,21 @@
 7. **Journal on Pages:** Settings → Pages → Source: GitHub Actions.
 8. **Deploy the Worker:** run `deploy-worker` manually once. It creates the Vectorize index and metadata indexes.
 
+## Autopilot (agent PRs merge themselves)
+
+Agents push `agent/<topic>` branches. `autopilot` opens the PR and enables auto-merge. GitHub merges with a merge commit (keeping each commit's SHA for the journal) after the required checks pass: CI and the Ponytail review. PRs that touch `.github/`, `.claude/`, `AGENTS.md`, `CLAUDE.md`, or `scripts/protected_paths.sh` are opened but left for you to merge, because they change the checks themselves.
+
+One-time per repo, from your terminal (dry run first, then `--apply`):
+
+```bash
+export AUTOPILOT_TOKEN=...       # fine-grained PAT; Contents, Pull requests, Workflows: read & write
+export OPENROUTER_API_KEY=...
+scripts/repo_bootstrap.sh vgainullin/sentimental
+scripts/repo_bootstrap.sh vgainullin/sentimental --apply
+```
+
+The script stores the PAT in an `autopilot` environment that only `main` may use, so a workflow added on a branch can't read it. One PAT scoped to "All repositories" serves every repo, so another repo only needs the same two commands. The script is portable: copy it with the workflows. Branch protection leaves admins able to push to `main`.
+
 ## Add a mathematician
 
 1. `msp resolve "Name" --zbmath-name "Last, First"` locally.

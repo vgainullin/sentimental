@@ -94,6 +94,7 @@ If Ponytail cannot be installed in the current environment, state that at the to
 - Conventional Commits (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`). Imperative mood, ≤ 72-char subject.
 - One logical change per commit. Diff stays as small as the task allows.
 - PR description: what changed, why, how it was verified, what was not checked.
+- Agents push work to `agent/<topic>` branches. The `autopilot` workflow opens the PR and GitHub merges it once the required checks pass. Never push to `main`.
 
 ## 9. Agent output style
 

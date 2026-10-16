@@ -174,3 +174,36 @@ Commits: 6857b08..6d786fa
 - Locally the skills load twice (plugin and repo), with the same text (reasoned).
 - `shortcut:` vendored snapshot of `84740e3`; the update procedure is in `docs/wiki/Known-Pitfalls.md`.
 - Superseded: "user uploads the four skill zips" is no longer needed for this repo. Uploading stays optional for other repos.
+
+## First Ponytail review applied
+
+Commits: 2bf264b..11129da
+
+### Changed
+- `2bf264b`: `ponytail.yml`: `persist-credentials: false` on checkout; `GH_TOKEN` moved from job level to the two `gh` steps; the post step refuses to post a report that contains the OpenRouter key or the GitHub token; the gate takes the last line matching `^VERDICT: (PASS|FAIL)$` instead of the file's last line; model pinned with `--model anthropic/claude-sonnet-5.5` and `ANTHROPIC_DEFAULT_HAIKU_MODEL=anthropic/claude-haiku-5.5`, replacing the `~...-latest` aliases.
+- `10cec4d`: four identical skill `LICENSE` copies replaced by one `.claude/skills/LICENSE-ponytail` (−63 lines).
+- `11129da`: `docs/wiki/Known-Pitfalls.md` documents the model pin, the OpenRouter guardrail, the secret guard and the new license path.
+
+### Why
+- First `/ponytail-review`, on PR #5 (`origin/main...ci/ponytail-review`), found 1 Must fix, 2 Should fix and 1 Nice to have. The user approved all four:
+  - Must fix: the model-written report goes to a public PR comment and could contain secrets: the OpenRouter key in the step env, `GH_TOKEN` at job level, and the token kept in `.git/config`. GitHub masks secrets in logs but not in comments.
+  - Should fix: the gate failed a clean review if the file ended with a blank line, and it trusted whatever the model wrote last.
+  - Should fix: `latest` aliases change verdicts without a commit (`AGENTS.md` §3).
+  - Nice to have: duplicate licenses.
+- Exact model slugs were read from OpenRouter's public `/api/v1/models` listing.
+- Reasoned, not run: an encoded secret could get past the exact-match guard. That gives a same-repo PR author no new capability, because they can already edit the workflow in their PR.
+
+### Results
+- The committed Ponytail skills loaded in this Claude Code cloud session: they showed up as available skills once the branch had `.claude/skills/`. This resolves the open "cloud sessions pick up the committed skills" item from [Ponytail skills vendored](#ponytail-skills-vendored).
+- The guard and gate shell logic were run by hand on 9 sample reports, and all behaved as intended: trailing blank lines → pass; CRLF → pass; two verdicts → last wins; no verdict → fail; inline mention → fail; leaked key → blocked; leaked GH token → blocked; clean → posts; missing report → placeholder posted. These tests are not committed.
+- actionlint clean.
+- Second `/ponytail-review` (`07ad90d..HEAD`): no Must fix; 1 Should fix; verdict Ship.
+- PR #5 (opened by the user): its `ponytail` check reports success only because it skips without `OPENROUTER_API_KEY`. No live review has run.
+
+### Negative results
+- Staged `git mv`/`git rm` changes leaked into the first fix commit. The commit was split before pushing, so each commit holds one change.
+
+### Open
+- Should fix from the second review: move the guard and gate into `scripts/ponytail_gate.sh` and commit a pytest over the 9 samples.
+- Set `OPENROUTER_API_KEY` and an OpenRouter guardrail that allows exactly `anthropic/claude-sonnet-5.5` and `anthropic/claude-haiku-5.5`.
+- Merge PR #5. The first live review runs on the next PR.

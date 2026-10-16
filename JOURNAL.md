@@ -2,7 +2,7 @@
 
 ## Summary
 
-_Updated: 2026-10-15 · through 74faaf3_
+_Updated: 2026-10-15 · through 2d40da0_
 
 - **State:** Agent rules, required Ponytail and the development journal are in place. No pipeline code yet.
 - **Decisions:**
@@ -11,7 +11,7 @@ _Updated: 2026-10-15 · through 74faaf3_
 - **Results:** none yet.
 - **Open:**
   - Set up `AGENTS.md` §5 tooling (uv, ruff, pyright, pytest, pre-commit) before the first code.
-  - First journal workflow run on GitHub; Pages source must be GitHub Actions.
+  - Confirm the journal publishes to Pages (Pages enabled; first run failed before that).
   - Plugin auto-enable via `.claude/settings.json` untested.
 
 ## Entries

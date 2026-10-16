@@ -1,0 +1,54 @@
+name: deploy-worker
+on:
+  push:
+    branches: [main]
+    paths: ["worker/**", ".github/workflows/deploy-worker.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: deploy-worker
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+      SEARCH_TOKEN: ${{ secrets.SEARCH_TOKEN }}
+      INDEX: math-style-chunks          # must match worker/wrangler.jsonc
+    steps:
+      - name: Check secrets
+        id: check
+        run: |
+          if [[ -n "$CF_API_TOKEN" && -n "$CF_ACCOUNT_ID" && -n "$SEARCH_TOKEN" ]]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::CF_API_TOKEN, CF_ACCOUNT_ID or SEARCH_TOKEN not set; skipping deploy"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.check.outputs.ok == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.check.outputs.ok == 'true'
+        with:
+          node-version: "22"
+      - name: Test
+        if: steps.check.outputs.ok == 'true'
+        run: npm test
+        working-directory: worker
+      - name: Deploy
+        if: steps.check.outputs.ok == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CF_API_TOKEN }}
+          accountId: ${{ secrets.CF_ACCOUNT_ID }}
+          workingDirectory: worker
+          # Idempotent setup: these fail harmlessly once the index exists.
+          preCommands: |
+            npx wrangler vectorize create "$INDEX" --dimensions=768 --metric=cosine || true
+            npx wrangler vectorize create-metadata-index "$INDEX" --property-name=author --type=string || true
+            npx wrangler vectorize create-metadata-index "$INDEX" --property-name=year --type=number || true
+          command: deploy
+          secrets: |
+            SEARCH_TOKEN

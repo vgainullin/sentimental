@@ -1,0 +1,28 @@
+name: wiki
+# Publishes docs/wiki/*.md plus a generated CLI-Reference page to the repo wiki.
+on:
+  push:
+    branches: [main]
+    paths: ["docs/wiki/**", "msp/cli.py", ".github/workflows/wiki.yml"]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: wiki
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-msp
+      - name: Assemble pages
+        run: |
+          mkdir -p /tmp/wiki
+          cp docs/wiki/*.md /tmp/wiki/
+          msp cli-docs --out /tmp/wiki/CLI-Reference.md
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/publish_wiki.sh /tmp/wiki "docs update ${{ github.sha }}"

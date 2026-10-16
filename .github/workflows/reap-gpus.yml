@@ -1,0 +1,21 @@
+name: reap-gpus
+# Cost backstop: terminate Lambda instances left behind by finished or crashed runs.
+on:
+  schedule:
+    - cron: "41 */2 * * *"
+  workflow_dispatch:
+permissions:
+  actions: read
+jobs:
+  reap:
+    runs-on: ubuntu-latest
+    env:
+      LAMBDA_API_KEY: ${{ secrets.LAMBDA_API_KEY }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-msp
+      - name: Reap
+        run: |
+          if [[ -z "$LAMBDA_API_KEY" ]]; then echo "no Lambda key; nothing to do"; exit 0; fi
+          python scripts/lambda_gpu.py reap --repo "$GITHUB_REPOSITORY"

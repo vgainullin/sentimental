@@ -11,6 +11,7 @@ Install from the official sources only: `DietrichGebert/ponytail` on GitHub or `
 | Agent | Install |
 |---|---|
 | Claude Code | Preconfigured in `.claude/settings.json`; accept the prompt when you trust the folder. Manual: `/plugin marketplace add DietrichGebert/ponytail` then `/plugin install ponytail@ponytail` |
+| Claude cloud sessions (web, mobile app, `--cloud`) | Nothing to install: the skills are committed in `.claude/skills/ponytail*` (upstream `84740e3`, MIT) and load automatically. Plugins and hooks don't load there, so `/ponytail <level>` switching is unavailable; level is `full`. The `ponytail` workflow uses the same committed skills on every PR |
 | Codex | `codex plugin marketplace add DietrichGebert/ponytail` then `codex plugin add ponytail@ponytail`; trust both hooks in `/hooks`; start a new thread |
 | Anything else | Load `skills/ponytail/SKILL.md` as a skill, or vendor upstream `AGENTS.md` as `.agents/ponytail.md` and read it before this file. Per-agent steps: upstream `INSTALL.md` |
 
@@ -93,6 +94,7 @@ If Ponytail cannot be installed in the current environment, state that at the to
 - Conventional Commits (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`). Imperative mood, ≤ 72-char subject.
 - One logical change per commit. Diff stays as small as the task allows.
 - PR description: what changed, why, how it was verified, what was not checked.
+- Agents push work to `agent/<topic>` branches. The `autopilot` workflow opens the PR and GitHub merges it once the required checks pass. Never push to `main`.
 
 ## 9. Agent output style
 

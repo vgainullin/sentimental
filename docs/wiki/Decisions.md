@@ -4,6 +4,8 @@ Newest first. One line of context, the decision, and what would make us revisit 
 
 | Date | Decision | Why | Revisit if |
 |---|---|---|---|
+| 2026-10 | Vendor four Ponytail skills into `.claude/skills/` (upstream `84740e3`), keeping the plugin for local hooks | Cloud sessions (web, mobile) don't load plugins but do load repo skills; CI review now runs a pinned copy instead of upstream `HEAD`. Reverses the earlier "not vendored" decision | Cloud sessions gain plugin support, or the duplicate load locally causes problems |
+| 2026-10 | Ponytail review runs in Actions via OpenRouter and gates PRs | AGENTS.md §11 requires a clean review; the authoring sessions can't load plugins, CI can | OpenRouter stops supporting Claude Code, or an Anthropic key is added |
 | 2026-10 | `mypy --strict` instead of pyright strict | pyright strict rejects pandas row access throughout; AGENTS.md allows either | pandas ships complete typing for `itertuples` |
 | 2026-10 | torch locked from PyPI (CUDA wheels) | The PyTorch CPU index wasn't reachable when the lock was made | embed-cpu install time matters |
 | 2026-10 | GROBID unreachable is an error, not a fallback | A plain-text fallback silently drops every citation context (AGENTS.md: no silent fallbacks) | — |

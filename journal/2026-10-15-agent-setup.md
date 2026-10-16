@@ -68,3 +68,29 @@ Commits: d9e2ab8..77982d3
 - Ponytail was unavailable in the authoring environment; §2 was applied by hand and `/ponytail-review` was not run.
 - `shortcut:` GPU host uses Lambda Stack torch, not the locked torch (`embed-lambda.yml`).
 - Title-based record merging may join distinct papers with generic titles.
+
+## Pipeline merged; first runs on main
+
+Commits: 8733a79..677ec18
+
+### Changed
+- `8733a79`: merged `main` (Pages enabled) into `feat/pipeline` to resolve the journal conflict; only `JOURNAL.md` and this file changed.
+- `677ec18`: PR #1 merged `feat/pipeline` into `main` (61 files, +7,021/−7), so the pipeline, Worker, workflows, `docs/wiki/` and `.github/dependabot.yml` are now on `main`.
+
+### Why
+- Merged `main` into the branch instead of rebasing, so the journal commits already on `main` (`2d40da0`, `d0c9b6d`) keep their SHAs. The reason was not recorded in the commit (unverified).
+
+### Results
+- Workflow runs on `677ec18` (GitHub Actions API, 2026-10-16T04:21Z):
+  - `ci`: success. Jobs python 3.12, python 3.13, worker, workflows (actionlint + shellcheck) all pass. This is the first run of ruff, `mypy --strict`, pytest and the Worker tests on GitHub runners.
+  - `deploy-worker`: success, but every step after "Check secrets" was skipped because Cloudflare secrets are not set (by design).
+  - `journal`: success; Pages publishes. The earlier run on `2d40da0` failed because Pages was not yet enabled.
+- Dependabot update jobs for pip, npm (`worker/`) and github-actions started on `677ec18`; still running when this entry was written.
+
+### Negative results
+- `wiki`: failed at "Publish". Logs need auth to read. Likely cause: the repo wiki has no first page yet, so its git repo does not exist; `scripts/publish_wiki.sh` exits 1 in that case (unverified).
+
+### Open
+- Create one placeholder wiki page, then rerun `wiki`.
+- Set secrets with `scripts/bootstrap_secrets.sh`, then run `deploy-worker` for real.
+- `wiki.yml` trigger path is `msp/cli.py`, but the file is `src/msp/cli.py`, so CLI changes alone will not republish the wiki (reasoned from the diff, not run).

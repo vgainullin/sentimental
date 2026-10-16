@@ -207,7 +207,7 @@ jobs:
         run: bash scripts/publish_wiki.sh /tmp/wiki "data status after run ${{ github.run_id }}"
 
   on-failure:
-    needs: [plan, shard, merge, embed-cpu, embed-lambda, index, report]
+    needs: [plan, shard, merge, embed-cpu, embed-lambda, index, report, reap]
     if: ${{ failure() }}
     runs-on: ubuntu-latest
     permissions:
@@ -233,6 +233,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       actions: read
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-msp
@@ -242,4 +243,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if [[ -z "$LAMBDA_API_KEY" ]]; then echo "no Lambda key; nothing to reap"; exit 0; fi
-          python scripts/lambda_gpu.py reap --repo "$GITHUB_REPOSITORY"
+          # embed-lambda is done, so this run's own instance counts as finished
+          python scripts/lambda_gpu.py reap --repo "$GITHUB_REPOSITORY" --finished-run "$GITHUB_RUN_ID"

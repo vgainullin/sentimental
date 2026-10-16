@@ -91,3 +91,91 @@ def test_api_error_exits():
     lam = lg.Lambda("key", base="https://x/api/v1", session=FakeSession())
     with pytest.raises(SystemExit, match="404"):
         lam.get("missing")
+
+
+def _reap(monkeypatch, instances, in_progress, *args):
+    s = FakeSession()
+    s.instances = {i["id"]: i for i in instances}
+    real = lg.Lambda("key", base="https://x/api/v1", session=s)
+    monkeypatch.setattr(lg, "Lambda", lambda: real)
+    monkeypatch.setattr(lg, "run_in_progress", in_progress)
+    exit_code = None
+    try:
+        lg.main(["reap", "--repo", "o/r", *args])
+    except SystemExit as e:
+        exit_code = e.code
+    term = [c[2]["instance_ids"] for c in s.calls if c[1] == "/instance-operations/terminate"]
+    return (term[0] if term else []), exit_code
+
+
+def test_reap_age_cap_beats_running_status(monkeypatch):
+    old = int(lg.time.time()) - 5 * 3600
+    fresh = int(lg.time.time()) - 60
+    insts = [
+        {"id": "i-stale", "name": f"msp-embed-1-{old}", "status": "active"},
+        {"id": "i-fresh", "name": f"msp-embed-2-{fresh}", "status": "active"},
+    ]
+    term, code = _reap(monkeypatch, insts, lambda repo, rid: True)
+    assert term == ["i-stale"] and code is None
+
+
+def test_reap_unknown_status_reaps_others_and_fails(monkeypatch):
+    insts = [
+        {"id": "i-done", "name": "msp-embed-1", "status": "active"},
+        {"id": "i-?", "name": "msp-embed-2", "status": "active"},
+    ]
+
+    def status(repo, rid):
+        if rid == "2":
+            raise LookupError("rate limited")
+        return False
+
+    term, code = _reap(monkeypatch, insts, status)
+    assert term == ["i-done"]
+    assert "i-?" in str(code) and "rate limited" in str(code)  # non-zero exit names it
+
+
+def test_reap_finished_run_flag_reaps_own_run(monkeypatch):
+    insts = [{"id": "i-own", "name": f"msp-embed-77-{int(lg.time.time())}", "status": "active"}]
+    term, _ = _reap(monkeypatch, insts, lambda repo, rid: True, "--finished-run", "77")
+    assert term == ["i-own"]
+
+
+def test_reap_malformed_prefixed_name_is_reaped(monkeypatch):
+    insts = [{"id": "i-bad", "name": "msp-embed-oops", "status": "active"}]
+    term, code = _reap(monkeypatch, insts, lambda repo, rid: True)
+    assert term == ["i-bad"] and code is None
+
+
+class Done:
+    def __init__(self, rc, out="", err=""):
+        self.returncode, self.stdout, self.stderr = rc, out, err
+
+
+def test_run_in_progress_outcomes(monkeypatch):
+    def fake(result):
+        monkeypatch.setattr(lg.subprocess, "run", lambda *a, **k: result)
+
+    fake(Done(0, '{"status": "in_progress"}'))
+    assert lg.run_in_progress("o/r", "1") is True
+    fake(Done(0, '{"status": "completed"}'))
+    assert lg.run_in_progress("o/r", "1") is False
+    fake(Done(1, err="could not find any workflow run with ID: 1"))
+    assert lg.run_in_progress("o/r", "1") is False  # deleted run = finished
+    fake(Done(1, err="HTTP 403: API rate limit exceeded"))
+    with pytest.raises(LookupError, match="rate limit"):
+        lg.run_in_progress("o/r", "1")
+
+    def missing(*a, **k):
+        raise FileNotFoundError("gh")
+
+    monkeypatch.setattr(lg.subprocess, "run", missing)
+    with pytest.raises(LookupError):
+        lg.run_in_progress("o/r", "1")
+
+
+def test_parse_name():
+    assert lg.parse_name("msp-embed-12-1700", "msp-embed-") == ("12", 1700)
+    assert lg.parse_name("msp-embed-12", "msp-embed-") == ("12", None)
+    assert lg.parse_name("msp-embed-x-1", "msp-embed-") is None
+    assert lg.parse_name("other-12", "msp-embed-") is None

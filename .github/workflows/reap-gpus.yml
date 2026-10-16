@@ -6,6 +6,8 @@ on:
   workflow_dispatch:
 permissions:
   actions: read
+  contents: read
+  issues: write
 jobs:
   reap:
     runs-on: ubuntu-latest
@@ -19,3 +21,17 @@ jobs:
         run: |
           if [[ -z "$LAMBDA_API_KEY" ]]; then echo "no Lambda key; nothing to do"; exit 0; fi
           python scripts/lambda_gpu.py reap --repo "$GITHUB_REPOSITORY"
+      - name: Alert when the cost backstop fails
+        if: ${{ failure() }}
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh label create gpu-reaper-failure --repo "$GITHUB_REPOSITORY" --color B60205 2>/dev/null || true
+          n=$(gh issue list --repo "$GITHUB_REPOSITORY" --label gpu-reaper-failure --state open --json number -q '.[0].number')
+          if [[ -n "$n" ]]; then
+            gh issue comment "$n" --repo "$GITHUB_REPOSITORY" --body "Failed again: $RUN_URL"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --label gpu-reaper-failure \
+              --title "GPU reaper failed: Lambda instances may be billing" \
+              --body "Run: $RUN_URL. Check https://cloud.lambdalabs.com/instances by hand, then close this."
+          fi

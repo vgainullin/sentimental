@@ -28,7 +28,7 @@ jobs:
           SSH_KEY_NAME: ${{ vars.LAMBDA_SSH_KEY_NAME || 'gh-actions' }}
           TYPES: ${{ vars.LAMBDA_INSTANCE_TYPES || 'gpu_1x_a10,gpu_1x_a6000,gpu_1x_a100' }}
         run: |
-          python scripts/lambda_gpu.py launch --name "msp-embed-${{ github.run_id }}" \
+          python scripts/lambda_gpu.py launch --name "msp-embed-${{ github.run_id }}-$(date +%s)" \
             --ssh-key "$SSH_KEY_NAME" --types "$TYPES"
 
       - name: SSH key

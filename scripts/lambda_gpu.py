@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 """Lambda Cloud GPU instances for embedding jobs: launch, wait, terminate, reap.
 
-Every instance is named msp-embed-<github run id> so `reap` can find and kill
-instances whose workflow run is no longer in progress (the cost backstop if a
-runner dies before its terminate step).
+Every instance is named msp-embed-<github run id>-<launch epoch s> so `reap` can
+kill instances whose workflow run is no longer in progress, or that are older than
+--max-age regardless of what GitHub says (the cost backstop if a runner dies before
+its terminate step). A run GitHub cannot find counts as finished; any other lookup
+failure makes `reap` exit non-zero so the failure is visible.
 
 Env: LAMBDA_API_KEY; optional LAMBDA_API_BASE (default below; Lambda has been
 moving domains, so this is configurable).
 
-  lambda_gpu.py launch --name msp-embed-123 --ssh-key gh-actions --types gpu_1x_a10,gpu_1x_a100
+  lambda_gpu.py launch --name msp-embed-123-1760000000 --ssh-key gh-actions --types gpu_1x_a10
   lambda_gpu.py terminate --id <instance id>
-  lambda_gpu.py reap --prefix msp-embed- --repo owner/name
+  lambda_gpu.py reap --repo owner/name [--finished-run ID] [--max-age S]
 """
 
 from __future__ import annotations
@@ -99,7 +101,11 @@ def _output(**kv) -> None:
 
 
 def run_in_progress(repo: str, run_id: str) -> bool:
-    """True unless GitHub says the run finished. Unknown counts as in progress (safe side)."""
+    """Whether the GitHub run is still going. A run GitHub cannot find is finished.
+
+    Raises LookupError when GitHub cannot answer (auth, rate limit, no gh), so the
+    caller can fail loudly instead of keeping a GPU alive forever.
+    """
     try:
         out = subprocess.run(
             ["gh", "run", "view", run_id, "--repo", repo, "--json", "status"],
@@ -107,9 +113,27 @@ def run_in_progress(repo: str, run_id: str) -> bool:
             text=True,
             timeout=60,
         )
+    except (OSError, subprocess.TimeoutExpired) as e:
+        raise LookupError(f"gh run view {run_id}: {e}") from e
+    if out.returncode != 0:
+        err = out.stderr.lower()
+        if "could not find" in err or "not found" in err or "404" in err:
+            return False
+        raise LookupError(f"gh run view {run_id}: {out.stderr.strip()[:300]}")
+    try:
         return json.loads(out.stdout)["status"] != "completed"
-    except Exception:  # noqa: BLE001
-        return True
+    except (ValueError, KeyError) as e:
+        raise LookupError(f"gh run view {run_id}: unreadable output") from e
+
+
+def parse_name(name: str, prefix: str) -> tuple[str, int | None] | None:
+    """(run id, launch epoch or None) from prefix + '<run id>[-<epoch>]'; None if not ours."""
+    if not name.startswith(prefix):
+        return None
+    run_id, _, epoch = name[len(prefix) :].partition("-")
+    if not run_id.isdigit() or (epoch and not epoch.isdigit()):
+        return None
+    return run_id, int(epoch) if epoch else None
 
 
 def main(argv=None):
@@ -125,6 +149,10 @@ def main(argv=None):
     s = sub.add_parser("reap")
     s.add_argument("--prefix", default="msp-embed-")
     s.add_argument("--repo", required=True)
+    s.add_argument(
+        "--finished-run", action="append", default=[], help="run id to treat as finished"
+    )
+    s.add_argument("--max-age", type=int, default=4 * 3600, help="reap anything older (s)")
     a = ap.parse_args(argv)
 
     lam = Lambda()
@@ -138,16 +166,34 @@ def main(argv=None):
         lam.terminate([a.id])
         print(f"terminated {a.id}")
     elif a.cmd == "reap":
-        doomed = []
+        doomed, unknown = [], []
+        now = time.time()
         for inst in lam.list():
-            name = inst.get("name") or ""
-            if not name.startswith(a.prefix) or inst.get("status") == "terminated":
+            if inst.get("status") == "terminated":
                 continue
-            run_id = name[len(a.prefix) :]
-            if not run_id.isdigit() or not run_in_progress(a.repo, run_id):
+            name = inst.get("name") or ""
+            if not name.startswith(a.prefix):
+                continue
+            parsed = parse_name(name, a.prefix)
+            if parsed is None:  # ours by prefix but malformed: nothing can claim it
                 doomed.append(inst["id"])
+                continue
+            run_id, epoch = parsed
+            if epoch is not None and now - epoch > a.max_age:
+                doomed.append(inst["id"])
+                continue
+            if run_id in a.finished_run:
+                doomed.append(inst["id"])
+                continue
+            try:
+                if not run_in_progress(a.repo, run_id):
+                    doomed.append(inst["id"])
+            except LookupError as e:
+                unknown.append(f"{inst['id']}: {e}")
         lam.terminate(doomed)
         print(f"reaped {len(doomed)} instance(s): {doomed}")
+        if unknown:
+            sys.exit("could not decide on instance(s), check by hand:\n" + "\n".join(unknown))
 
 
 if __name__ == "__main__":

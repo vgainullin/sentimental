@@ -398,3 +398,68 @@ def test_citation_title_match_needs_years_within_one(tmp_path):
     assert len(_link(tmp_path, t, 1990, t, 1991)) == 1
     assert len(_link(tmp_path, t, 1990, t, 1992)) == 0
     assert len(_link(tmp_path, t, 1990, t, None)) == 0  # unknown year cannot satisfy the rule
+
+
+class _Resp:
+    def __init__(self, status=200, chunks=(), boom=None):
+        self.status_code, self.headers, self._chunks, self._boom = status, {}, chunks, boom
+
+    def iter_content(self, n):
+        yield from self._chunks
+        if self._boom:
+            raise self._boom
+
+
+class _Session:
+    def __init__(self, *outcomes):
+        self.outcomes = list(outcomes)
+
+    def get(self, url, timeout, stream=False):
+        o = self.outcomes.pop(0)
+        if isinstance(o, Exception):
+            raise o
+        return o
+
+
+def test_api_key_never_reaches_logs_or_errors(tmp_path, caplog):
+    import requests
+
+    from msp.http import Http
+
+    http = Http(tmp_path, max_retries=2)
+    http.session = _Session(
+        requests.ConnectionError("failed for https://api.openalex.org/works?api_key=SECRET123"),
+        _Resp(status=403),
+    )
+    with pytest.raises(requests.HTTPError) as e:
+        http.get_json("https://api.openalex.org/works", {"q": "x"}, {"api_key": "SECRET123"})
+    assert "SECRET123" not in str(e.value) and "SECRET123" not in caplog.text
+    assert "api_key=***" in str(e.value)
+
+
+def test_download_survives_dropped_connection(tmp_path):
+    import requests
+
+    from msp.http import Http
+
+    http = Http(tmp_path / "cache")
+    http.session = _Session(_Resp(chunks=[b"%PDF-" + b"x" * 10], boom=requests.ConnectionError()))
+    dest = tmp_path / "W1.pdf"
+    assert http.download("https://example.org/a.pdf", dest, min_bytes=1) is False
+    assert not dest.exists() and not list(tmp_path.glob("*.part"))
+
+
+def test_grobid_timeout_is_per_paper(tmp_path, monkeypatch):
+    import requests
+
+    from msp import parse
+
+    def slow(*a, **k):
+        raise requests.ReadTimeout("read timed out")
+
+    monkeypatch.setattr(parse.requests, "post", slow)
+    pdf = tmp_path / "a.pdf"
+    pdf.write_bytes(b"%PDF-1.4")
+    tei = tmp_path / "a.tei.xml"
+    assert parse.grobid_pdf_to_tei(pdf, tei, "http://grobid:8070") is False
+    assert not tei.exists()

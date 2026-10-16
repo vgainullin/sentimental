@@ -32,22 +32,30 @@ SENT_SPLIT = re.compile(r"(?<=[.!?])\s+(?=[A-Z(\[])")
 
 # ---------------------------------------------------------------- GROBID
 def grobid_pdf_to_tei(pdf: Path, tei: Path, grobid_url: str, timeout: int = 300) -> bool:
-    with pdf.open("rb") as f:
-        r = requests.post(
-            f"{grobid_url.rstrip('/')}/api/processFulltextDocument",
-            files={"input": f},
-            data={
-                "segmentSentences": "1",
-                "consolidateHeader": "0",
-                "consolidateCitations": "0",
-                "includeRawCitations": "1",
-            },
-            timeout=timeout,
-        )
+    """PDF -> TEI via GROBID. False (and logged) on any per-paper failure, so one slow
+    or broken PDF cannot stop the shard."""
+    try:
+        with pdf.open("rb") as f:
+            r = requests.post(
+                f"{grobid_url.rstrip('/')}/api/processFulltextDocument",
+                files={"input": f},
+                data={
+                    "segmentSentences": "1",
+                    "consolidateHeader": "0",
+                    "consolidateCitations": "0",
+                    "includeRawCitations": "1",
+                },
+                timeout=timeout,
+            )
+    except requests.RequestException as e:
+        log.warning("GROBID failed on %s: %s", pdf.name, type(e).__name__)
+        return False
     if r.status_code != 200:
         log.warning("GROBID %s on %s", r.status_code, pdf.name)
         return False
-    tei.write_text(r.text)
+    tmp = tei.with_name(tei.name + ".part")
+    tmp.write_text(r.text)
+    tmp.replace(tei)  # a killed job never leaves a truncated TEI to be reused
     return True
 
 

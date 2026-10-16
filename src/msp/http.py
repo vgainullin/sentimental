@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 import time
 from pathlib import Path
 from typing import Any
@@ -17,6 +18,13 @@ from urllib.parse import urlencode, urlparse
 import requests
 
 log = logging.getLogger(__name__)
+
+_SECRET = re.compile(r"\b(api_key|apikey|key|token|access_token)=[^&\s'\"]+", re.IGNORECASE)
+
+
+def redact(text: str) -> str:
+    """Mask secret query parameters (API keys) in a URL or an error message."""
+    return _SECRET.sub(r"\1=***", text)
 
 
 class Http:
@@ -65,7 +73,9 @@ class Http:
             try:
                 r = self.session.get(url, timeout=60, stream=stream)
             except requests.RequestException as e:
-                log.warning("network error %s (%s), retry %d", url, e, attempt + 1)
+                log.warning(
+                    "network error %s (%s), retry %d", redact(url), redact(str(e)), attempt + 1
+                )
             else:
                 if r.status_code == 200:
                     return r
@@ -75,9 +85,9 @@ class Http:
                     log.warning("HTTP %s on %s, waiting %.1fs", r.status_code, host, wait)
                     time.sleep(wait)
                 else:
-                    r.raise_for_status()
+                    raise requests.HTTPError(f"HTTP {r.status_code} for {redact(url)}", response=r)
             delay = min(delay * 2, 60)
-        raise RuntimeError(f"giving up on {url}")
+        raise RuntimeError(f"giving up on {redact(url)}")
 
     # ---- public ----
     def get_text(
@@ -130,11 +140,16 @@ class Http:
         try:
             r = self._request(self.build(url, secret_params), stream=True)
         except Exception as e:  # noqa: BLE001
-            log.warning("download failed %s: %s", url, str(e).split("?")[0])
+            log.warning("download failed %s: %s", redact(url), redact(str(e)))
             return False
-        with tmp.open("wb") as f:
-            for chunk in r.iter_content(1 << 16):
-                f.write(chunk)
+        try:
+            with tmp.open("wb") as f:
+                for chunk in r.iter_content(1 << 16):
+                    f.write(chunk)
+        except requests.RequestException as e:  # dropped connection mid-file
+            log.warning("download interrupted %s: %s", redact(url), redact(str(e)))
+            tmp.unlink(missing_ok=True)
+            return False
         head = tmp.read_bytes()[:5]
         if tmp.stat().st_size < min_bytes or (expect_pdf and head != b"%PDF-"):
             log.warning("rejecting %s (size %d, head %r)", url, tmp.stat().st_size, head)

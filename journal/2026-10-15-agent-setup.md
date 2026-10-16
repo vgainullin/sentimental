@@ -122,3 +122,28 @@ Commits: d4bfa2a..f8c69ff
 - Unverified: that Dependabot's uv updater works here (known at its next run); the command name `/ponytail:ponytail-review` and marketplace name `ponytail`; that OpenRouter routing works with `claude-code-action@v1`; that `gh pr comment --edit-last` edits the right comment.
 - Set `OPENROUTER_API_KEY`, then make `ponytail / review` a required check on `main`.
 - Close Dependabot #3 so it reopens through `uv`.
+
+## Ponytail in cloud sessions
+
+Commits: 7e2844e
+
+### Changed
+- `7e2844e` (branch `ci/ponytail-review`): `AGENTS.md` §0 install table gains a "Claude cloud sessions (web, mobile app, `--cloud`)" row: upload upstream skills `ponytail`, `ponytail-review`, `ponytail-audit`, `ponytail-debt` as claude.ai skills; no hooks, so no `/ponytail <level>` switching; the `ponytail` workflow still reviews every PR.
+- Outside the repo: four upload zips (`ponytail`, `ponytail-review`, `ponytail-audit`, `ponytail-debt`), each `SKILL.md` + `LICENSE`, built from upstream `84740e3` and given to the user.
+
+### Why
+- Claude Code docs (cloud-environments, settings) say cloud sessions, including ones started from the Claude mobile app, do not install plugins declared through `enabledPlugins`/`extraKnownMarketplaces` in `.claude/settings.json`, and `/plugin` is not available there. They do load skills enabled on claude.ai. That is why the plugin auto-enable has no effect in these sessions.
+- The user chose claude.ai skills. Rejected: an environment setup script; committing the skills to `.claude/skills` (that would undo the "not vendored" decision and load Ponytail twice locally).
+- `ponytail-gain` and `ponytail-help` were left out: without the plugin, the benchmark display and the hook-level help do nothing useful.
+
+### Results
+- Upstream `84740e3` checked: six self-contained skills; none reference scripts, hooks or binaries; no `.exe`/`.dll`; MIT license. Frontmatter checked in all four zips.
+
+### Negative results
+- Plugin auto-enable via `.claude/settings.json` does not work in cloud sessions (from the docs, see Why). This resolves the "not tested" item under Agent setup for cloud sessions; local Claude Code is still untested.
+
+### Open
+- Unverified: that the user uploaded the zips, that claude.ai accepts them as they are, and that the skills trigger in cloud sessions.
+- Cloud sessions cannot switch levels through hooks (by design).
+- Open the PR for `ci/ponytail-review`: it carries the CI gate, its docs, and this `AGENTS.md` row.
+- Set `OPENROUTER_API_KEY`.

@@ -207,3 +207,36 @@ Commits: 2bf264b..11129da
 - Should fix from the second review: move the guard and gate into `scripts/ponytail_gate.sh` and commit a pytest over the 9 samples.
 - Set `OPENROUTER_API_KEY` and an OpenRouter guardrail that allows exactly `anthropic/claude-sonnet-5.5` and `anthropic/claude-haiku-5.5`.
 - Merge PR #5. The first live review runs on the next PR.
+
+## Autopilot for agent PRs
+
+Commits: 87995a2..46cb70e
+
+### Changed
+- `87995a2`: new `.github/workflows/agent-push.yml`, a marker job on push to `agent/**` with no permissions or secrets. New `.github/workflows/autopilot.yml`, triggered via `workflow_run` on `agent-push`, so it always runs `main`'s copy. It opens the PR if none is open, then enables auto-merge (`--merge --delete-branch`). It reads `AUTOPILOT_TOKEN` from the `autopilot` environment. New `scripts/protected_paths.sh`: PRs touching gate files get a comment and are left for a human. New `tests/test_protected_paths.py`.
+- `fd5f421`: new `scripts/repo_bootstrap.sh owner/repo [--apply]`, dry run by default. It creates the `autopilot` environment limited to `main`, sets `AUTOPILOT_TOKEN` as an environment secret and `OPENROUTER_API_KEY` as a repo secret (values piped, never in argv or output), enables auto-merge, branch deletion and merge commits, and protects `main` with the required checks `python (3.12)`, `python (3.13)`, `worker`, `workflows`, `review`. Admins can still push. New `tests/test_repo_bootstrap.py`.
+- `3c2ff37`: `AGENTS.md` §8 now says agents push to `agent/<topic>` and never to `main`. `docs/wiki/` Agent-Guide (Shipping), Architecture (workflow row), Known-Pitfalls (Autopilot) and Runbook (setup commands) document this.
+- `2192add`: `autopilot.yml` gets the changed paths from the PR files API, including `previous_filename`. `protected_paths.sh` now also covers `pyproject.toml` and `.pre-commit-config.yaml`. A rename test was added.
+- `46cb70e`: Agent-Guide and Runbook list the new protected files and the rename case.
+
+### Why
+- The user does not want to open or merge PRs by hand, and has set this up before in other repos. Goal: agents push `agent/<topic>`, merges happen with no clicks, and each repo needs one bootstrap command. `agent_dev` was checked and has no such automation.
+- Rejected first design (never pushed): a push-triggered autopilot with a repo-level PAT. `/ponytail-review` found it unsafe before push. A push-triggered workflow runs the branch's own copy, so a branch could delete its own path check, and any workflow on a branch could read a repo-level PAT.
+- `workflow_run` plus a PAT stored in a main-only environment: the merge rules and the token stay out of a branch's reach. A PAT is needed because PRs and merges made with `GITHUB_TOKEN` do not trigger CI or Ponytail.
+- Gate files (`.github/`, `.claude/`, `AGENTS.md`, `CLAUDE.md`, `pyproject.toml`, `.pre-commit-config.yaml`, `scripts/protected_paths.sh`) need a human merge, so an agent cannot edit the checks that approve it.
+- Merge commits, not squash, so the SHAs cited in the journal survive.
+- A second `/ponytail-review` raised two should-fix items, both applied in `2192add`: renamed gate files were missed, and lint/type/test config was unprotected.
+
+### Results
+- 38 pytest pass (local, `ci/ponytail-review`). These include new tests for the bootstrap script and for protected paths, with the rename case. ruff, actionlint and shellcheck are clean.
+- After the SIGPIPE fix, the suite passed in 3 of 3 runs.
+
+### Negative results
+- The first design was unsafe (see Why) and was rebuilt.
+- A bug found by tests: the dry run piped data into a command that never read stdin, so it failed with SIGPIPE (exit 141) now and then. Fixed with `run_in`, which takes the data as an argument and opens the pipe only with `--apply`.
+
+### Open
+- Unverified: nothing has run live. Also unverified: GitHub's `commits/{ref}` and `compare` endpoints with the slash in `agent/<topic>` branch names; the PAT permissions; the branch protection and environment API calls against real GitHub.
+- `shortcut:` a branch can still add a workflow that uses the built-in `GITHUB_TOKEN` to enable auto-merge, and required checks run the PR's own workflow files. Closing that needs rulesets that require workflows from `main`. This is acceptable while agents are careless rather than adversarial (recorded in `docs/wiki/Known-Pitfalls.md`).
+- User actions: run `scripts/repo_bootstrap.sh vgainullin/sentimental`, then rerun it with `--apply` with `AUTOPILOT_TOKEN` and `OPENROUTER_API_KEY` exported. Merge PR #5 (it contains gate files, so it needs a human merge). Push a first `agent/<topic>` branch as the live test.
+- Port to the `agent_dev` template and other repos.

@@ -24,6 +24,7 @@
 | secret | `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | shard, merge |
 | secret | `SEARCH_TOKEN` | Worker auth |
 | secret | `LAMBDA_API_KEY`, `LAMBDA_SSH_PRIVATE_KEY` | embed-lambda, reap |
+| secret | `OPENROUTER_API_KEY` | ponytail (PR review gate) |
 | var | `HF_DATASET` (for example `you/math-style-data`), `R2_BUCKET`, `VECTORIZE_INDEX` | |
 | var | `MSP_MAILTO`, `LAMBDA_SSH_KEY_NAME`, `LAMBDA_INSTANCE_TYPES`, `EMBED_GPU_THRESHOLD` | |
 
@@ -49,6 +50,8 @@
 | Rotate a key | Update the secret. Nothing caches keys. |
 | Bring the journal up to date | End the session with the historian agent (`AGENTS.md` §10), commit on a branch, merge. |
 | Preview a sync | `msp --shard tao sync r2-push --dry-run` |
+| Re-run Ponytail on a PR | Actions → ponytail → Run workflow → PR number |
+| Make Ponytail required | Settings → Branches → protect `main` → require the `ponytail / review` check |
 
 ## When it breaks
 
@@ -64,4 +67,5 @@
 | `parse` fails with "GROBID not reachable" | Intended: no silent fallback. Rerun once GROBID is up, or pass `--no-grobid` knowingly (no citation contexts). |
 | Sync fails with "would replace … pass --overwrite" | Intended. Check with `--dry-run`, then add `--overwrite`. |
 | Historian PR shows no CI checks | PRs opened with `GITHUB_TOKEN` don't trigger workflows. Close and reopen the PR, or push an empty commit, to run CI. |
+| `ponytail` says "produced no report" | The plugin or model call failed. Check the run log: plugin install, OpenRouter credit, or the skill name `/ponytail:ponytail-review`. |
 | A Lambda instance is still running | `reap-gpus` runs every 2 hours. To kill one now, run `python scripts/lambda_gpu.py terminate --id <id>`. |

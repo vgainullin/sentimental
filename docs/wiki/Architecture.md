@@ -58,6 +58,7 @@ data/                       r2://$R2_BUCKET/
 | `deploy-worker` | changes under `worker/` | Tests, creates the Vectorize index if needed, deploys the Worker |
 | `wiki` | changes under `docs/wiki/` or the CLI | Publishes pages plus a generated CLI reference |
 | `journal` | journal changes on main | Publishes the development journal to GitHub Pages |
+| `ponytail` | every non-draft PR from this repo, manual | `/ponytail-review` via Claude Code on OpenRouter; sticky PR comment; fails on any "must fix" |
 
 ## Search API
 

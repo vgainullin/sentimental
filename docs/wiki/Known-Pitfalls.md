@@ -23,6 +23,10 @@ Things that have bitten this project or are unverified. Add to this page when yo
 ## GitHub Actions
 - The GPU host installs locked versions of everything except torch and CUDA, which come from Lambda Stack (a recorded `shortcut:`). Embedding logs print the torch and CUDA versions.
 
+## Ponytail in CI
+- Claude Code runs through OpenRouter (`ANTHROPIC_BASE_URL=https://openrouter.ai/api`). OpenRouter only guarantees Claude Code with the Anthropic first-party provider, so set Anthropic as the top provider in OpenRouter.
+- The plugin command name `/ponytail:ponytail-review` and the marketplace name `ponytail` are inferred from the install string `ponytail@ponytail`; confirm on the first run.
+
 ## Data quality
 - Title-based merging can join different papers with the same generic title in the same year. Spot-check `papers` for authors with common titles ("On a theorem of…").
 - PDF text garbles mathematics, so formulas become `⟨math⟩`. A LaTeX OCR model (Nougat or Marker) is the upgrade path.

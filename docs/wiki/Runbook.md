@@ -1,0 +1,68 @@
+# Runbook
+
+## One-time setup
+
+1. **Repo:** public, with Wiki enabled. Create one placeholder wiki page so GitHub creates the wiki's git repo.
+2. **Cloudflare:**
+   - Create an R2 bucket (for example `math-style-data`) and an R2 API token with Object Read & Write on it.
+   - Create an API token with Workers Scripts edit, Workers AI read, and Vectorize edit.
+3. **Hugging Face:** a write token. The dataset repo is created private on first push.
+4. **OpenAlex:** a free API key, which raises the budget to $1/day.
+5. **Lambda Cloud (optional):**
+   - An API key.
+   - Register an SSH public key named `gh-actions`; its private key becomes `LAMBDA_SSH_PRIVATE_KEY`.
+6. **Secrets and variables:** from your own terminal:
+   ```bash
+   LAMBDA_SSH_KEY_FILE=~/.ssh/lambda_gh scripts/bootstrap_secrets.sh owner/repo
+   ```
+
+| Kind | Name | Used by |
+|---|---|---|
+| secret | `OPENALEX_API_KEY` | harvest |
+| secret | `HF_TOKEN` | merge, embed, index, report |
+| secret | `CF_ACCOUNT_ID`, `CF_API_TOKEN` | index, deploy-worker |
+| secret | `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | shard, merge |
+| secret | `SEARCH_TOKEN` | Worker auth |
+| secret | `LAMBDA_API_KEY`, `LAMBDA_SSH_PRIVATE_KEY` | embed-lambda, reap |
+| secret | `ANTHROPIC_API_KEY` (optional) | history: historian agent |
+| var | `HF_DATASET` (for example `you/math-style-data`), `R2_BUCKET`, `VECTORIZE_INDEX` | |
+| var | `MSP_MAILTO`, `LAMBDA_SSH_KEY_NAME`, `LAMBDA_INSTANCE_TYPES`, `EMBED_GPU_THRESHOLD` | |
+
+7. **Let the historian open PRs:** Settings → Actions → General → "Allow GitHub Actions to create and approve pull requests".
+8. **Deploy the Worker:** run `deploy-worker` manually once. It creates the Vectorize index and metadata indexes.
+
+## Add a mathematician
+
+1. `msp resolve "Name" --zbmath-name "Last, First"` locally.
+2. Check the candidates (works count, years, topics) and add an entry to `authors.yaml` with a new `key`.
+3. Open a PR. After merge, run `pipeline` manually with `authors: <key>`.
+
+## Common operations
+
+| Goal | How |
+|---|---|
+| Rerun one author | `pipeline` → Run workflow → `authors: tao`. Unchanged files are skipped and cached responses reused. |
+| Only re-parse and re-chunk | `stages: parse link chunk` |
+| Force GPU or CPU embedding | `embed: lambda` or `embed: cpu` |
+| Skip Vectorize upload | untick `index` |
+| See what's in the data | wiki [[Data Status|Data-Status]], or `msp status` after `msp sync hf-pull` |
+| Query search | `curl -H "Authorization: Bearer $SEARCH_TOKEN" "https://<worker>/search?q=sieve+weights&author=tao"` |
+| Rotate a key | Update the secret. Nothing caches keys. |
+| Bring the journal up to date | In Claude Code: "use the historian agent". Or run `history` manually. |
+| Preview a sync | `msp --shard tao sync r2-push --dry-run` |
+
+## When it breaks
+
+| Symptom | Likely cause and fix |
+|---|---|
+| `plan` fails with "Missing secrets/variables" | Set the listed names (see the table above). |
+| Shard: 429 or budget errors from OpenAlex | Daily budget spent. Rerun tomorrow: cached responses make the rerun cheap. |
+| Shard: "GROBID did not come up" | Image pull was slow. Parse falls back to plain text with no citation contexts. Rerun with `stages: parse link chunk`. |
+| zbMATH records with no MSC or reviews | Field names differ. Run `msp debug-zbmath ai:<code>` and adjust `sources/zbmath.py`. |
+| `parity-check` fails | Workers AI changed the model or pooling. **Do not upload.** See [[Known Pitfalls|Known-Pitfalls]]. |
+| `embed-lambda`: no capacity | Add more types to `LAMBDA_INSTANCE_TYPES`, or rerun with `embed: cpu`. |
+| Wiki publish: "Wiki repo not found" | Enable the wiki and create one page in the UI. |
+| `parse` fails with "GROBID not reachable" | Intended: no silent fallback. Rerun once GROBID is up, or pass `--no-grobid` knowingly (no citation contexts). |
+| Sync fails with "would replace … pass --overwrite" | Intended. Check with `--dry-run`, then add `--overwrite`. |
+| Historian PR shows no CI checks | PRs opened with `GITHUB_TOKEN` don't trigger workflows. Close and reopen the PR, or push an empty commit, to run CI. |
+| A Lambda instance is still running | `reap-gpus` runs every 2 hours. To kill one now, run `python scripts/lambda_gpu.py terminate --id <id>`. |

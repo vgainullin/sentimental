@@ -15,7 +15,6 @@ Prices as checked in October 2026. Re-check before scaling up.
 | Vectorize | per stored and queried dimension | Own papers only by default; upserts replace rather than duplicate (sha1 ids). |
 | R2 | storage only, no egress fees | PDFs are the bulk; `.part` files are never uploaded. |
 | Hugging Face | private dataset storage | Only tables and embeddings, never PDFs. |
-| Anthropic API (historian) | per token | Runs only when commits lack journal entries; `--max-turns 30`; 20-minute timeout; skipped for journal commits so it can't loop. |
 
 **Rule for agents:** any new paid call needs a cache or an idempotency key, a
 config switch that defaults to off, and a row in this table.

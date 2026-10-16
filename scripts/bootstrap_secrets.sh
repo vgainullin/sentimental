@@ -27,7 +27,6 @@ secret R2_ACCESS_KEY_ID  "R2 S3 API access key id"
 secret R2_SECRET_ACCESS_KEY "R2 S3 API secret"
 secret SEARCH_TOKEN      "any long random string; clients send it as a Bearer token"
 secret LAMBDA_API_KEY    "Lambda Cloud API key (optional)"
-secret ANTHROPIC_API_KEY "Anthropic API key for the historian agent (optional)"
 if [[ -f "${LAMBDA_SSH_KEY_FILE:-}" ]]; then
   gh secret set LAMBDA_SSH_PRIVATE_KEY --repo "$repo" < "$LAMBDA_SSH_KEY_FILE"; echo "  set LAMBDA_SSH_PRIVATE_KEY"
 else

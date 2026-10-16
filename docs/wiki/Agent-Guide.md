@@ -29,7 +29,7 @@ adds only what is specific to this project. When the two disagree, AGENTS.md win
 - **Never change the chunk embedding model or pooling alone.** The Worker embeds queries with Workers AI BGE and CLS pooling; `msp parity-check` enforces agreement. Change both sides and re-embed everything.
 - **GPUs must always be torn down.** Use an `if: always()` terminate step and an instance name of `msp-embed-<run_id>`, so the reaper can find it.
 - **Workflows never use `pull_request_target`** and never interpolate `${{ inputs.* }}` or `${{ github.event.* }}` into `run:`. Pass them through `env:`.
-- **Don't edit generated pages** (CLI-Reference, Data-Status, Development-History, Journal) or any page in the wiki UI. Edit `docs/` in the repo.
+- **Don't edit generated pages** (CLI-Reference, Data-Status) or any page in the wiki UI. Edit `docs/wiki/` in the repo.
 
 ## Extending
 
@@ -40,6 +40,5 @@ adds only what is specific to this project. When the two disagree, AGENTS.md win
 
 ## History
 
-After landing commits, run the historian (`.claude/agents/historian.md`) or let the
-`history` workflow do it. Every commit on main should be cited in `docs/journal/`;
-[[Development-History]] lists the ones that aren't.
+End every session with the historian agent, as `AGENTS.md` §10 requires. The journal (`JOURNAL.md`,
+`journal/`) is the record of why things changed; this wiki describes how things are now.

@@ -19,8 +19,7 @@ semantic dispersion and coherence, and how citing papers describe the work.
 | [[Glossary]] | A term is unfamiliar. |
 | [[CLI Reference|CLI-Reference]] | Generated from the code on every push. |
 | [[Data Status|Data-Status]] | Generated after every pipeline run. |
-| [[Journal]] | Why things changed, session by session (historian agent). |
-| [[Development History|Development-History]] | Every commit by day, and what the journal hasn't covered yet. |
+| [Development journal](https://vgainullin.github.io/sentimental/) | Why things changed, with evidence. Kept by the historian agent (`AGENTS.md` §10), published to GitHub Pages. |
 
 Pages are written in `docs/wiki/` in the repo and published by the `wiki`
 workflow. **Edit them in the repo, never in the wiki UI**: the next publish

@@ -24,11 +24,10 @@
 | secret | `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | shard, merge |
 | secret | `SEARCH_TOKEN` | Worker auth |
 | secret | `LAMBDA_API_KEY`, `LAMBDA_SSH_PRIVATE_KEY` | embed-lambda, reap |
-| secret | `ANTHROPIC_API_KEY` (optional) | history: historian agent |
 | var | `HF_DATASET` (for example `you/math-style-data`), `R2_BUCKET`, `VECTORIZE_INDEX` | |
 | var | `MSP_MAILTO`, `LAMBDA_SSH_KEY_NAME`, `LAMBDA_INSTANCE_TYPES`, `EMBED_GPU_THRESHOLD` | |
 
-7. **Let the historian open PRs:** Settings → Actions → General → "Allow GitHub Actions to create and approve pull requests".
+7. **Journal on Pages:** Settings → Pages → Source: GitHub Actions.
 8. **Deploy the Worker:** run `deploy-worker` manually once. It creates the Vectorize index and metadata indexes.
 
 ## Add a mathematician
@@ -48,7 +47,7 @@
 | See what's in the data | wiki [[Data Status|Data-Status]], or `msp status` after `msp sync hf-pull` |
 | Query search | `curl -H "Authorization: Bearer $SEARCH_TOKEN" "https://<worker>/search?q=sieve+weights&author=tao"` |
 | Rotate a key | Update the secret. Nothing caches keys. |
-| Bring the journal up to date | In Claude Code: "use the historian agent". Or run `history` manually. |
+| Bring the journal up to date | End the session with the historian agent (`AGENTS.md` §10), commit on a branch, merge. |
 | Preview a sync | `msp --shard tao sync r2-push --dry-run` |
 
 ## When it breaks

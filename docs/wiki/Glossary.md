@@ -14,5 +14,5 @@
 | TEI | XML that GROBID produces from a PDF: sections, sentences, references, citation markers. |
 | Parity check | Proof that Workers AI and local BGE embeddings agree (mean cosine ≥ 0.98) before vectors are uploaded. |
 | Sidecar | `<artifact>.meta.json` holding an artifact's provenance. |
-| Historian | The agent that writes `docs/journal/` entries from git history. |
+| Historian | The agent (`.claude/agents/historian.md`) that writes journal entries from git history at the end of each session. |
 | `shortcut:` | AGENTS.md marker for a known limit and when to upgrade it. |

@@ -7,7 +7,8 @@ API. These are the inputs to a fox/hedgehog style analysis: breadth across field
 semantic dispersion and coherence, and stance in citation contexts.
 
 **Docs live in the [wiki](../../wiki)**: architecture, data contracts, runbook, cost
-guardrails, journal, and development history. Coding agents start with
+and cost guardrails. The development journal is published separately on
+[GitHub Pages](https://vgainullin.github.io/sentimental/). Coding agents start with
 [`AGENTS.md`](AGENTS.md), then the wiki's Agent Guide.
 
 ## Quick start
@@ -37,8 +38,7 @@ by a Cloudflare Worker. See the wiki's Runbook for the secrets to set
 | `worker/` | Cloudflare Worker search API |
 | `scripts/` | CI helpers: shard planning, Lambda GPUs, wiki publishing, history |
 | `docs/wiki/` | Wiki source, published by the `wiki` workflow |
-| `docs/journal/` | Development journal, maintained by the historian agent |
-| `.claude/agents/historian.md` | The historian agent |
+| `JOURNAL.md`, `journal/` | Development journal ([published](https://vgainullin.github.io/sentimental/)), kept by the historian agent |
 | `authors.yaml` | The mathematicians covered; CI shards by `key` |
 
 MIT licensed.

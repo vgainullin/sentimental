@@ -13,8 +13,7 @@
 - [[Data Status|Data-Status]]
 
 **History**
-- [[Journal]]
-- [[Development History|Development-History]]
+- [Development journal](https://vgainullin.github.io/sentimental/)
 
 **Understand**
 - [[Known Pitfalls|Known-Pitfalls]]

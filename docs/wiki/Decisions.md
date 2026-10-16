@@ -4,7 +4,6 @@ Newest first. One line of context, the decision, and what would make us revisit 
 
 | Date | Decision | Why | Revisit if |
 |---|---|---|---|
-| 2026-10 | Historian agent drafts journal entries as a PR, never a direct push | The journal makes claims about the work; a human checks them against the cited commits | Entries prove reliably accurate over many weeks |
 | 2026-10 | `mypy --strict` instead of pyright strict | pyright strict rejects pandas row access throughout; AGENTS.md allows either | pandas ships complete typing for `itertuples` |
 | 2026-10 | torch locked from PyPI (CUDA wheels) | The PyTorch CPU index wasn't reachable when the lock was made | embed-cpu install time matters |
 | 2026-10 | GROBID unreachable is an error, not a fallback | A plain-text fallback silently drops every citation context (AGENTS.md: no silent fallbacks) | — |

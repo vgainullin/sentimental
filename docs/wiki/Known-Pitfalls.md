@@ -21,7 +21,6 @@ Things that have bitten this project or are unverified. Add to this page when yo
 - **OpenAlex coverage before ~1950 is thin.** zbMATH (back to 1868) is the main source for historical figures.
 
 ## GitHub Actions
-- PRs opened by `GITHUB_TOKEN` (the historian's) don't trigger CI. Close and reopen the PR, or push to it.
 - The GPU host installs locked versions of everything except torch and CUDA, which come from Lambda Stack (a recorded `shortcut:`). Embedding logs print the torch and CUDA versions.
 
 ## Data quality

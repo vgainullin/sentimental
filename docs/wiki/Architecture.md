@@ -30,7 +30,8 @@ shards    SPECTER2 (papers)     parity check,     Data-Status wiki page,
 | Embeddings, small corpus | Actions CPU runner (CPU torch) | No setup. |
 | Embeddings, large corpus | Lambda Cloud GPU via `embed-lambda.yml` | Chosen automatically above `EMBED_GPU_THRESHOLD` chunks. |
 | Search API | Cloudflare Worker + Vectorize + Workers AI | Query embeddings come from the same BGE model; no server to run. |
-| Docs and history | GitHub wiki, published from `docs/wiki/`, `docs/journal/`, and git | One source of truth, reviewed in PRs. |
+| Docs | GitHub wiki, published from `docs/wiki/` | One source of truth, reviewed in PRs. |
+| Journal | GitHub Pages, published from `JOURNAL.md` and `journal/` by the `journal` workflow | Only the journal is public on Pages (`AGENTS.md` §10). |
 
 ## Storage layout
 
@@ -56,7 +57,7 @@ data/                       r2://$R2_BUCKET/
 | `reap-gpus` | every 2 h | Terminates Lambda instances from finished runs |
 | `deploy-worker` | changes under `worker/` | Tests, creates the Vectorize index if needed, deploys the Worker |
 | `wiki` | changes under `docs/wiki/` or the CLI | Publishes pages plus a generated CLI reference |
-| `history` | every push to main, weekly | Publishes Development-History and Journal. If commits lack journal entries and `ANTHROPIC_API_KEY` is set, the historian agent drafts them and opens a PR. |
+| `journal` | journal changes on main | Publishes the development journal to GitHub Pages |
 
 ## Search API
 

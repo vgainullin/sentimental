@@ -10,7 +10,7 @@ Install from the official sources only: `DietrichGebert/ponytail` on GitHub or `
 
 | Agent | Install |
 |---|---|
-| Claude Code | `/plugin marketplace add DietrichGebert/ponytail` then `/plugin install ponytail@ponytail` |
+| Claude Code | Preconfigured in `.claude/settings.json`; accept the prompt when you trust the folder. Manual: `/plugin marketplace add DietrichGebert/ponytail` then `/plugin install ponytail@ponytail` |
 | Codex | `codex plugin marketplace add DietrichGebert/ponytail` then `codex plugin add ponytail@ponytail`; trust both hooks in `/hooks`; start a new thread |
 | Anything else | Load `skills/ponytail/SKILL.md` as a skill, or vendor upstream `AGENTS.md` as `.agents/ponytail.md` and read it before this file. Per-agent steps: upstream `INSTALL.md` |
 
@@ -102,11 +102,19 @@ If Ponytail cannot be installed in the current environment, state that at the to
 - End every reply with one or two lines: what was skipped or not checked, and any risk the user must know.
 - Ask at most one question, and only when the answer changes the work.
 
-## 10. Definition of done
+## 10. Development journal
+
+- `JOURNAL.md` holds a ≤ 25-line summary (state, standing decisions, current best results, open questions) and an index of entries. `journal/YYYY-MM-DD-<slug>.md` holds one append-only entry per working day.
+- End every work session by running the `historian` agent (Claude Code: `.claude/agents/historian.md`). Other agents follow that file's procedure directly.
+- Entries record evidence only: commits, verified results with uncertainty, negative results, open risks. Unverified claims are marked.
+- Merges to `main` that touch the journal publish it to GitHub Pages (`.github/workflows/journal.yml`). Only the journal is published.
+
+## 11. Definition of done
 
 - [ ] Ponytail installed and active; `/ponytail-review` clean of "must fix"
 - [ ] `ruff`, type check, and tests pass locally
 - [ ] Results reproducible from SHA + lockfile + config + seed
 - [ ] No leakage across splits; metrics reported with uncertainty and baseline
 - [ ] Every `shortcut:` has a stated upgrade condition
+- [ ] Journal entry written and summary refreshed
 - [ ] Reply ends with skipped/unchecked items and risks

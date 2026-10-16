@@ -3,7 +3,7 @@ name: wiki
 on:
   push:
     branches: [main]
-    paths: ["docs/wiki/**", "msp/cli.py", ".github/workflows/wiki.yml"]
+    paths: ["docs/wiki/**", "src/msp/cli.py", ".github/workflows/wiki.yml"]
   workflow_dispatch:
 permissions:
   contents: write

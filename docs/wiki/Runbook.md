@@ -33,7 +33,7 @@
 
 ## Autopilot (agent PRs merge themselves)
 
-Agents push `agent/<topic>` branches. `autopilot` opens the PR and enables auto-merge. GitHub merges with a merge commit (keeping each commit's SHA for the journal) after the required checks pass: CI and the Ponytail review. PRs that touch `.github/`, `.claude/`, `AGENTS.md`, `CLAUDE.md`, or `scripts/protected_paths.sh` are opened but left for you to merge, because they change the checks themselves.
+Agents push `agent/<topic>` branches. `autopilot` opens the PR and enables auto-merge. GitHub merges with a merge commit (keeping each commit's SHA for the journal) after the required checks pass: CI and the Ponytail review. PRs that touch `.github/`, `.claude/`, `AGENTS.md`, `CLAUDE.md`, `pyproject.toml`, `.pre-commit-config.yaml`, or `scripts/protected_paths.sh` (including moving them) are opened but left for you to merge, because they change the checks themselves.
 
 One-time per repo, from your terminal (dry run first, then `--apply`):
 

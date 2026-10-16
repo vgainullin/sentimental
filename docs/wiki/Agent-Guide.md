@@ -33,7 +33,7 @@ adds only what is specific to this project. When the two disagree, AGENTS.md win
 
 ## Shipping
 
-Push to `agent/<topic>`, never to `main`. `autopilot` opens the PR, and GitHub merges it when CI and the Ponytail review pass. If a check fails, the PR stays open: fix it on the same branch. Changes to gate files (`.github/`, `.claude/`, `AGENTS.md`, `CLAUDE.md`) always wait for a human, so keep them in their own small branch.
+Push to `agent/<topic>`, never to `main`. `autopilot` opens the PR, and GitHub merges it when CI and the Ponytail review pass. If a check fails, the PR stays open: fix it on the same branch. Changes to gate files (`.github/`, `.claude/`, `AGENTS.md`, `CLAUDE.md`, `pyproject.toml`, `.pre-commit-config.yaml`) always wait for a human, so keep them in their own small branch.
 
 ## Extending
 

@@ -1,0 +1,72 @@
+name: autopilot
+# Opens the PR for a pushed agent/<topic> branch and enables GitHub auto-merge, so GitHub
+# merges once the required checks pass (branch protection, set by scripts/repo_bootstrap.sh).
+#
+# Why it is built this way:
+# - workflow_run always runs main's copy of this file, so a branch can't loosen these rules.
+# - AUTOPILOT_TOKEN (a fine-grained PAT) lives in the `autopilot` environment, which only
+#   main-context jobs can use; a workflow added on a branch can't read it. A PAT is needed
+#   because PRs and merges made with GITHUB_TOKEN don't trigger CI, Ponytail, or deploys.
+# - PRs that touch gate-defining files (scripts/protected_paths.sh) are opened but never
+#   auto-merged: an agent must not be able to edit the checks that approve it.
+on:
+  workflow_run:
+    workflows: [agent-push]
+    types: [completed]
+
+permissions:
+  contents: read
+concurrency:
+  group: autopilot-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+
+jobs:
+  open-and-auto-merge:
+    if: >-
+      github.event.workflow_run.conclusion == 'success'
+      && github.event.workflow_run.event == 'push'
+      && startsWith(github.event.workflow_run.head_branch, 'agent/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: autopilot
+    env:
+      BRANCH: ${{ github.event.workflow_run.head_branch }}
+      GH_TOKEN: ${{ secrets.AUTOPILOT_TOKEN }}
+    steps:
+      - name: Check for the token
+        run: |
+          if [[ -z "$GH_TOKEN" ]]; then
+            echo "::error::AUTOPILOT_TOKEN missing from the autopilot environment; run scripts/repo_bootstrap.sh"
+            exit 1
+          fi
+      - uses: actions/checkout@v4      # main, for scripts/protected_paths.sh
+        with:
+          persist-credentials: false
+      - name: Open the PR if needed
+        id: pr
+        run: |
+          pr="$(gh pr list --head "$BRANCH" --state open --json number -q '.[0].number')"
+          if [[ -z "$pr" ]]; then
+            title="$(gh api "repos/$GITHUB_REPOSITORY/commits/$BRANCH" -q '.commit.message' | head -n 1)"
+            gh api "repos/$GITHUB_REPOSITORY/compare/main...$BRANCH" \
+              -q '.commits[] | "- " + (.commit.message | split("\n")[0])' > body.md
+            pr="$(gh pr create --base main --head "$BRANCH" --title "$title" --body-file body.md \
+                  | grep -oE '[0-9]+$')"
+          fi
+          echo "number=$pr" >> "$GITHUB_OUTPUT"
+      - name: Auto-merge unless gate files changed
+        env:
+          PR: ${{ steps.pr.outputs.number }}
+        run: |
+          held="$(gh pr diff "$PR" --name-only | bash scripts/protected_paths.sh)"
+          if [[ -n "$held" ]]; then
+            # shellcheck disable=SC2016  # backticks are a literal markdown fence
+            printf 'Autopilot: not auto-merging. These files define the checks, so a human merges:\n\n```\n%s\n```\n' \
+              "$held" > held.md
+            gh pr comment "$PR" --body-file held.md
+            echo "::notice::PR #$PR changes gate files; left for a human"
+            exit 0
+          fi
+          # Merge commit, not squash: keeps each conventional commit and the SHAs the journal
+          # cites. No fallback: if auto-merge can't be enabled, fail and leave the PR open.
+          gh pr merge "$PR" --auto --merge --delete-branch

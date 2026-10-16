@@ -1,0 +1,13 @@
+name: agent-push
+# Marker only: a push to agent/** completes this workflow, which triggers `autopilot`.
+# `autopilot` runs via workflow_run, so it always uses main's definition; a branch can't
+# rewrite the merge rules it is judged by. This file holds no secrets and does nothing.
+on:
+  push:
+    branches: ["agent/**"]
+permissions: {}
+jobs:
+  announce:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "agent branch pushed"

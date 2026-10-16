@@ -1,0 +1,25 @@
+# Copy to config.yaml and edit.
+data_dir: data
+seed: 0                         # seeds every RNG (sampling, parity-check)
+authors_file: authors.yaml
+mailto: you@example.org          # contact in the User-Agent; polite to API operators
+
+# OpenAlex: free key gives a $1/day budget. Put it here or in env OPENALEX_API_KEY.
+openalex_api_key: null
+# Paid OpenAlex full text (~$0.01 per file). Off by default; free arXiv/OA PDFs are tried first.
+use_openalex_content: false
+
+# Local GROBID for PDF → TEI with sentences, references, citation contexts.
+#   docker run --rm -p 8070:8070 grobid/grobid:0.9.1-crf   # CPU-friendly; -full is more accurate with a GPU
+grobid_url: http://localhost:8070
+
+# Embedding models
+paper_model: allenai/specter2_base
+paper_adapter: allenai/specter2        # proximity adapter
+chunk_model: BAAI/bge-base-en-v1.5
+chunk_tokens: 250                      # words per chunk; keeps chunks under BGE's 512-token limit
+chunk_overlap: 40
+
+max_works_per_author: 2000
+# >0 samples the N most-cited papers citing each work, for citation contexts (stance/sentiment).
+citing_sample_per_work: 0

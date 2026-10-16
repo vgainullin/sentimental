@@ -1,0 +1,34 @@
+# Mathematicians the pipeline covers. CI shards by `key` (one Actions job each).
+# Fill ids only after checking them with:
+#   msp resolve "Terence Tao" --zbmath-name "Tao, Terence"
+# Name matches are not identities: confirm works count, active years, and topics.
+# zbMATH codes below follow the expected lastname.firstname pattern and must still be verified.
+
+- key: hilbert
+  name: David Hilbert
+  birth_year: 1862
+  zbmath_code: hilbert.david        # verify
+  openalex_id: null                 # pre-1950 coverage in OpenAlex is thin; zbMATH carries these
+
+- key: poincare
+  name: Henri Poincaré
+  birth_year: 1854
+  zbmath_code: poincare.henri       # verify
+
+- key: grothendieck
+  name: Alexander Grothendieck
+  birth_year: 1928
+  zbmath_code: grothendieck.alexander   # verify
+
+- key: tao
+  name: Terence Tao
+  birth_year: 1975
+  zbmath_code: tao.terence          # verify
+  openalex_id: null                 # fill from `msp resolve`
+  arxiv_query: 'au:"Terence Tao"'   # check the hit count for homonyms
+
+- key: mirzakhani
+  name: Maryam Mirzakhani
+  birth_year: 1977
+  zbmath_code: mirzakhani.maryam    # verify
+  arxiv_query: 'au:"Maryam Mirzakhani"'

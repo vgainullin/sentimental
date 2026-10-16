@@ -322,3 +322,79 @@ def test_empty_and_malformed_inputs():
         }
     )
     assert r["msc"] == ["11A"] and r["year"] is None and r["doi"] is None
+
+
+def _own(source_id, title, year):
+    r = empty_record("arxiv", source_id)
+    r.update(title=title, year=year, author_keys={"a"}, role="own")
+    return r
+
+
+def test_title_link_needs_known_years_within_one():
+    t = "On a theorem of Hilbert in algebra"
+    merged = merge_records([_own("1", t, 1920), _own("2", t, None), _own("3", t, 1950)])
+    assert len(merged) == 3  # a missing year no longer bridges 1920 and 1950
+    merged = merge_records([_own("4", t, 2014), _own("5", t, np.int64(2015))])
+    assert len(merged) == 1  # within one year, numpy ints from parquet included
+
+
+def test_title_links_do_not_chain_across_years():
+    t = "Collected papers volume one"
+    merged = merge_records([_own("1", t, 1960), _own("2", t, 1961), _own("3", t, 1962)])
+    assert len(merged) == 2  # 1960+1961 link; 1962 would stretch the group to two years
+
+
+def _link(tmp_path, own_title, own_year, ref_title, ref_year):
+    from msp import citations
+
+    cfg = Config(data_dir=tmp_path)
+    cfg.ensure_dirs()
+    pd.DataFrame(
+        [
+            {
+                "paper_id": "W1",
+                "role": "own",
+                "doi": None,
+                "title": own_title,
+                "year": own_year,
+                "author_keys": ["a"],
+            },
+            {
+                "paper_id": "C1",
+                "role": "citing",
+                "doi": None,
+                "title": "A citing paper here",
+                "year": 2020,
+                "author_keys": [],
+            },
+        ]
+    ).to_parquet(cfg.table("papers"))
+    pd.DataFrame(
+        [
+            {
+                "paper_id": "C1",
+                "ref_id": "b0",
+                "title": ref_title,
+                "doi": None,
+                "year": ref_year,
+                "first_author": None,
+            }
+        ]
+    ).to_parquet(cfg.table("references"))
+    pd.DataFrame(
+        [{"paper_id": "C1", "ref_id": "b0", "sentence": "As shown in [1].", "section": "Intro"}]
+    ).to_parquet(cfg.table("contexts"))
+    return citations.link(cfg)
+
+
+def test_citation_title_match_rejects_subset_titles(tmp_path):
+    long = "The distribution of prime numbers in short intervals"
+    assert len(_link(tmp_path, long, 1990, "Prime numbers", 1990)) == 0
+    assert len(_link(tmp_path, long, 1990, long, 1990)) == 1  # exact title still links
+
+
+def test_citation_title_match_needs_years_within_one(tmp_path):
+    t = "The distribution of prime numbers in short intervals"
+    assert len(_link(tmp_path, t, 1990, t, 1991)) == 1
+    assert len(_link(tmp_path, t, 1990, t, 1992)) == 0
+    assert len(_link(tmp_path, t, 1990, t, None)) == 0  # unknown year cannot satisfy the rule

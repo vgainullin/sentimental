@@ -26,7 +26,7 @@ One row per merged work. Producer: `harvest` (per shard), `merge` (union).
 | `role` | `own` \| `citing` | `own` wins on merge. |
 | `sources` | list[str] | Which of openalex, zbmath, arxiv contributed. |
 
-Merge rule: records link on DOI, arXiv id, or normalized title (at least 12 characters) with years within one.
+Merge rule: records link on DOI, arXiv id, or normalized title (at least 12 characters) with both years known and within one. A merged group's years span at most one year, so title links cannot chain.
 
 ## fetch_status, parse_status
 One row per paper: `pdf_path`, `tei_path`, `via` (host or `openalex-tei`, `cached-*`), and `parser` (`grobid`, `pymupdf`, or None).
@@ -46,7 +46,7 @@ The input to the stance/sentiment model. Producer: `link`.
 | `citing_paper_id`, `cited_paper_id` | The cited paper is an own paper. |
 | `author_key` | Whose work is cited. |
 | `sentence`, `section` | |
-| `match` | `doi` or `title:<score>`. Title matches need a score of 90+ and years within one. |
+| `match` | `doi` or `title:<score>`. Title matches need a token-sort score of 90+ and both years known and within one. |
 
 ## chunks
 `chunk_id = <paper_id>::<section_idx>::<j>`, `paper_id, section, text, n_words` (at most 250 words, 40 overlap, at least 25 words).

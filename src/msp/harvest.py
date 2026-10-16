@@ -1,7 +1,9 @@
 """Harvest records per author from all sources and merge them into one papers table.
 
 Records are linked when they share a DOI, an arXiv id, or a normalized title
-with publication years within one year. Linking uses union-find so a zbMATH
+with publication years within one year. A title link needs known years, and the
+merged group's years must still span at most one year, so links cannot chain
+1960 -> 1961 -> 1962. Linking uses union-find so a zbMATH
 record (DOI) and an arXiv record (arXiv id) join through an OpenAlex record
 that carries both.
 """
@@ -33,9 +35,22 @@ def norm_title(t: str | None) -> str | None:
     return t if len(t) >= 12 else None  # too short to link on safely
 
 
+def _year(y: Any) -> int | None:
+    """Year as int; None for missing, NaN, or junk. Accepts numpy ints from parquet."""
+    if y is None or (isinstance(y, float) and y != y):
+        return None
+    try:
+        return int(y)
+    except (TypeError, ValueError):
+        return None
+
+
 class _UF:
-    def __init__(self, n: int) -> None:
-        self.p = list(range(n))
+    """Union-find that tracks each group's known publication-year range."""
+
+    def __init__(self, years: list[int | None]) -> None:
+        self.p = list(range(len(years)))
+        self.span: list[tuple[int, int] | None] = [(y, y) if y is not None else None for y in years]
 
     def find(self, i: int) -> int:
         while self.p[i] != i:
@@ -43,13 +58,31 @@ class _UF:
             i = self.p[i]
         return i
 
+    def _joined(self, a: int, b: int) -> tuple[int, int] | None:
+        sa, sb = self.span[self.find(a)], self.span[self.find(b)]
+        if sa is None or sb is None:
+            return sa or sb
+        return min(sa[0], sb[0]), max(sa[1], sb[1])
+
     def union(self, a: int, b: int) -> None:
-        self.p[self.find(a)] = self.find(b)
+        ra, rb = self.find(a), self.find(b)
+        if ra != rb:
+            self.span[rb] = self._joined(ra, rb)
+            self.p[ra] = rb
+
+    def title_union(self, a: int, b: int) -> None:
+        """Link on title only if both groups have years and the result spans <= 1 year."""
+        ra, rb = self.find(a), self.find(b)
+        if ra == rb or self.span[ra] is None or self.span[rb] is None:
+            return
+        lo, hi = self._joined(ra, rb)  # type: ignore[misc]  # both spans known here
+        if hi - lo <= 1:
+            self.union(ra, rb)
 
 
 def merge_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """records: source records, each carrying author_keys (set) and role."""
-    uf = _UF(len(records))
+    uf = _UF([_year(r.get("year")) for r in records])
     seen: dict[tuple[str, str], int] = {}
     by_title: dict[str, list[int]] = defaultdict(list)
     for i, r in enumerate(records):
@@ -68,9 +101,7 @@ def merge_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
         nt = norm_title(r.get("title"))
         if nt:
             for j in by_title[nt]:
-                yi, yj = r.get("year"), records[j].get("year")
-                if yi is None or yj is None or abs(yi - yj) <= 1:
-                    uf.union(i, j)
+                uf.title_union(i, j)
             by_title[nt].append(i)
 
     groups: dict[int, list[dict[str, Any]]] = defaultdict(list)

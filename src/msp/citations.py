@@ -4,8 +4,9 @@ Output table `citation_contexts`: one row per sentence in which a citing paper
 cites one of the author's works. This is the input for the reception/stance
 (sentiment) model.
 
-Matching: DOI first; otherwise fuzzy title match (token-set ratio >= 90) with
-publication years within one year when both are known.
+Matching: DOI first; otherwise fuzzy title match (token-sort ratio >= 90) with
+both publication years known and within one year. Token-sort, not token-set:
+token-set scores 100 whenever one title's words are a subset of the other's.
 """
 
 from __future__ import annotations
@@ -61,15 +62,11 @@ def link(cfg: Config, min_score: int = 90) -> pd.DataFrame:
         best: Any = None
         score = 0.0
         for t, r in own_titles:
-            s = float(fuzz.token_set_ratio(nt, t or ""))
+            s = float(fuzz.token_sort_ratio(nt, t or ""))
             if s > score:
                 best, score = r, s
         if best is not None and score >= min_score:
-            if (
-                pd.notna(ref.year)
-                and pd.notna(best.year)
-                and abs(int(ref.year) - int(best.year)) > 1
-            ):
+            if pd.isna(ref.year) or pd.isna(best.year) or abs(int(ref.year) - int(best.year)) > 1:
                 return None, None
             return best, f"title:{int(score)}"
         return None, None

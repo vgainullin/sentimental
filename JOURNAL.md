@@ -13,7 +13,8 @@ _Updated: 2026-10-15 · through 77982d3_
   - Ponytail is loaded as a plugin, not vendored. [2026-10-15](journal/2026-10-15-agent-setup.md)
 - **Results:** 32 + 5 offline tests pass; no pipeline metrics yet. [2026-10-15](journal/2026-10-15-agent-setup.md#pipeline-and-deployment)
 - **Open:**
-  - First live run: secrets, wiki, Pages source, `deploy-worker`, then `pipeline` for one author.
+  - Confirm the journal publishes to Pages (Pages enabled in `d0c9b6d`; first run failed before that).
+  - First live run: secrets, wiki, `deploy-worker`, then `pipeline` for one author.
   - Verify zbMATH fields (`msp debug-zbmath`) and author codes (`msp resolve`).
   - `/ponytail-review` on the pipeline diff; plugin auto-enable still untested.
   - torch `shortcut:` entries (PyPI lock, Lambda Stack on GPU).

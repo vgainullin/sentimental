@@ -19,8 +19,18 @@ Commits: b0801ca..74faaf3
 
 ## Open
 - Pipeline code, environment and tests not started; `AGENTS.md` §5 tooling not yet set up here.
-- Journal workflow not yet run on GitHub; needs Pages source set to GitHub Actions (unverified).
+- Journal workflow: first run failed at deploy because Pages was off.
 - Plugin auto-enable through `.claude/settings.json` not tested (unverified).
+
+## Pages enabled
+
+Commits: 2d40da0
+
+### Changed
+- Pages source set to GitHub Actions in repo settings (done on mobile Safari; the iOS app has no Pages setting).
+
+### Open
+- Confirm the journal workflow publishes on this commit.
 
 ## Pipeline and deployment
 

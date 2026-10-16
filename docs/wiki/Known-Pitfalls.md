@@ -25,7 +25,9 @@ Things that have bitten this project or are unverified. Add to this page when yo
 
 ## Ponytail in CI
 - Claude Code runs through OpenRouter (`ANTHROPIC_BASE_URL=https://openrouter.ai/api`). OpenRouter only guarantees Claude Code with the Anthropic first-party provider, so set Anthropic as the top provider in OpenRouter.
-- The plugin command name `/ponytail:ponytail-review` and the marketplace name `ponytail` are inferred from the install string `ponytail@ponytail`; confirm on the first run.
+- The review uses the committed skill `/ponytail-review` from `.claude/skills/`. On PRs, claude-code-action restores `.claude/` from the base branch, so a PR can't alter the skill that reviews it.
+- Locally, the plugin and the committed skills both load, so Ponytail appears twice (`ponytail-review` and `ponytail:ponytail-review`). Same text, harmless; use either.
+- `shortcut:` vendored skills are a snapshot of upstream `84740e3`. To update: copy `skills/{ponytail,ponytail-review,ponytail-audit,ponytail-debt}/SKILL.md` from a newer upstream commit, keep each `LICENSE`, and record the commit in the journal.
 
 ## Data quality
 - Title-based merging can join different papers with the same generic title in the same year. Spot-check `papers` for authors with common titles ("On a theorem of…").

@@ -67,5 +67,5 @@
 | `parse` fails with "GROBID not reachable" | Intended: no silent fallback. Rerun once GROBID is up, or pass `--no-grobid` knowingly (no citation contexts). |
 | Sync fails with "would replace … pass --overwrite" | Intended. Check with `--dry-run`, then add `--overwrite`. |
 | Historian PR shows no CI checks | PRs opened with `GITHUB_TOKEN` don't trigger workflows. Close and reopen the PR, or push an empty commit, to run CI. |
-| `ponytail` says "produced no report" | The plugin or model call failed. Check the run log: plugin install, OpenRouter credit, or the skill name `/ponytail:ponytail-review`. |
+| `ponytail` says "produced no report" | The model call failed or the skill didn't run. Check the run log: OpenRouter credit, model access, or whether `.claude/skills/ponytail-review/` exists on the base branch. |
 | A Lambda instance is still running | `reap-gpus` runs every 2 hours. To kill one now, run `python scripts/lambda_gpu.py terminate --id <id>`. |

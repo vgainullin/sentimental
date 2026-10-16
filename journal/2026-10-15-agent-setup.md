@@ -94,3 +94,31 @@ Commits: 8733a79..677ec18
 - Create one placeholder wiki page, then rerun `wiki`.
 - Set secrets with `scripts/bootstrap_secrets.sh`, then run `deploy-worker` for real.
 - `wiki.yml` trigger path is `msp/cli.py`, but the file is `src/msp/cli.py`, so CLI changes alone will not republish the wiki (reasoned from the diff, not run).
+
+## Dependabot fix and Ponytail review gate
+
+Commits: d4bfa2a..f8c69ff
+
+### Changed
+- `d4bfa2a`: `wiki.yml` push path filter `msp/cli.py` → `src/msp/cli.py`.
+- `7cc72df`: `.github/dependabot.yml` Python ecosystem `pip` → `uv`, so updates also rewrite `uv.lock`.
+- `5e5f695`: PR #4 merged `d4bfa2a` and `7cc72df` (plus the previous journal entry) into `main`.
+- `46dea9f` (branch `ci/ponytail-review`): new `.github/workflows/ponytail.yml`. On non-draft same-repo PRs and manual dispatch it runs `anthropics/claude-code-action@v1` through OpenRouter (`ANTHROPIC_BASE_URL=https://openrouter.ai/api`, key from secret `OPENROUTER_API_KEY`), installs plugin `ponytail@ponytail` from `DietrichGebert/ponytail`, asks for `/ponytail:ponytail-review`, posts a sticky PR comment, and fails unless the report's last line is `VERDICT: PASS`. It skips with a warning when the secret is missing. `scripts/bootstrap_secrets.sh` now prompts for the key.
+- `f8c69ff`: `docs/wiki/` (Architecture, Cost-Guardrails, Decisions, Known-Pitfalls, Runbook) documents the gate, its cost limits (`--max-turns 40`, 25 min timeout, cancel-in-progress), and how to make it required.
+
+### Why
+- Dependabot PR #3 (pip group, 24 updates) changed only `pyproject.toml` (+21/−21), so `uv sync --locked` rejected it. The `uv` ecosystem updates the lockfile as well.
+- `AGENTS.md` §0/§11 require `/ponytail-review` on every diff, but the authoring Claude sessions cannot load plugins; CI can. OpenRouter is used because no Anthropic or OpenRouter key was found in the authoring environment (only variable names were checked), and that environment cannot see repo secrets. Revisit if an Anthropic key is added.
+
+### Results
+- PR #4: `ci` passed on `d4bfa2a` and `7cc72df`; merged as `5e5f695`.
+- Dependabot PR #2 (actions: checkout v4→v7, setup-node, wrangler-action): `ci` passed. wrangler-action was not exercised because `deploy-worker` skips without Cloudflare secrets.
+- `ci/ponytail-review`, locally: actionlint clean, shellcheck clean, 32 pytest pass. `ponytail.yml` has not run.
+
+### Negative results
+- Dependabot PR #3 failed `ci` at the setup-msp step on Python 3.12 and 3.13: lockfile out of date.
+
+### Open
+- Unverified: that Dependabot's uv updater works here (known at its next run); the command name `/ponytail:ponytail-review` and marketplace name `ponytail`; that OpenRouter routing works with `claude-code-action@v1`; that `gh pr comment --edit-last` edits the right comment.
+- Set `OPENROUTER_API_KEY`, then make `ponytail / review` a required check on `main`.
+- Close Dependabot #3 so it reopens through `uv`.

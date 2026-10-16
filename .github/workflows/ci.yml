@@ -1,0 +1,54 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12", "3.13"]
+    env:
+      UV_PYTHON: ${{ matrix.python }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-msp
+        with:
+          dev: "true"
+      - run: ruff check src tests scripts
+      - run: ruff format --check src tests scripts
+      - run: mypy
+      - run: pytest -q
+      - name: CLI reference renders
+        run: msp cli-docs --out /tmp/cli.md && test -s /tmp/cli.md
+      - name: authors.yaml is valid
+        run: python scripts/plan_shards.py authors.yaml
+
+  worker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm test
+        working-directory: worker
+
+  workflows:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: actionlint
+        uses: docker://rhysd/actionlint:latest
+        with:
+          args: -color
+      - name: shellcheck scripts
+        run: shellcheck scripts/*.sh

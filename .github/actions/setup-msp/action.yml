@@ -1,0 +1,30 @@
+name: Set up msp
+description: uv, the locked environment, and a config.yaml for CI
+inputs:
+  extras:
+    description: 'Space-separated extras to install, e.g. "embed"'
+    default: ""
+  dev:
+    description: Install the dev dependency group
+    default: "false"
+runs:
+  using: composite
+  steps:
+    - uses: astral-sh/setup-uv@v6
+      with:
+        enable-cache: true
+        cache-dependency-glob: uv.lock
+    - name: Sync locked environment
+      shell: bash
+      env:
+        EXTRAS: ${{ inputs.extras }}
+        DEV: ${{ inputs.dev }}
+      run: |
+        args=(--locked)
+        for e in $EXTRAS; do args+=(--extra "$e"); done
+        if [[ "$DEV" == true ]]; then args+=(--group dev); else args+=(--no-dev); fi
+        uv sync "${args[@]}"
+        echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+    - name: CI config
+      shell: bash
+      run: cp -n config.example.yaml config.yaml

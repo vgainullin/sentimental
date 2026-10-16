@@ -1,0 +1,90 @@
+name: embed-lambda
+# Reusable: embed papers and chunks on a Lambda Cloud GPU, then terminate it.
+# The instance is always terminated (if: always()), and reap-gpus.yml is the backstop.
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gpu:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HF_DATASET: ${{ vars.HF_DATASET }}
+      LAMBDA_API_KEY: ${{ secrets.LAMBDA_API_KEY }}
+      SSH_OPTS: -i ~/.ssh/lambda -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-msp
+      - run: msp sync hf-pull --what tables
+
+      - name: Launch GPU instance
+        id: launch
+        env:
+          SSH_KEY_NAME: ${{ vars.LAMBDA_SSH_KEY_NAME || 'gh-actions' }}
+          TYPES: ${{ vars.LAMBDA_INSTANCE_TYPES || 'gpu_1x_a10,gpu_1x_a6000,gpu_1x_a100' }}
+        run: |
+          python scripts/lambda_gpu.py launch --name "msp-embed-${{ github.run_id }}" \
+            --ssh-key "$SSH_KEY_NAME" --types "$TYPES"
+
+      - name: SSH key
+        env:
+          KEY: ${{ secrets.LAMBDA_SSH_PRIVATE_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/lambda
+          chmod 600 ~/.ssh/lambda
+
+      - name: Wait for SSH
+        env:
+          IP: ${{ steps.launch.outputs.ip }}
+        run: |
+          for _ in $(seq 40); do
+            # shellcheck disable=SC2086
+            ssh $SSH_OPTS -o ConnectTimeout=10 "ubuntu@$IP" true && exit 0
+            sleep 15
+          done
+          exit 1
+
+      - name: Locked requirements for the GPU host
+        # shortcut: torch/CUDA come from Lambda Stack, not uv.lock; pin CUDA torch via a uv index
+        # when GPU results must be bit-reproducible across hosts.
+        run: |
+          uv export --locked --no-dev --extra embed --no-hashes --no-emit-project \
+            | grep -Ev '^(torch|triton|nvidia-|cuda-)' > requirements-gpu.txt
+
+      - name: Upload code and tables
+        env:
+          IP: ${{ steps.launch.outputs.ip }}
+        run: |
+          rsync -az -e "ssh $SSH_OPTS" --exclude .git --exclude 'data/cache' --exclude 'data/pdf' \
+            --exclude 'data/tei' --exclude 'data/shards' ./ "ubuntu@$IP:msp/"
+
+      - name: Embed on GPU
+        env:
+          IP: ${{ steps.launch.outputs.ip }}
+        run: |
+          # shellcheck disable=SC2086
+          ssh $SSH_OPTS "ubuntu@$IP" 'set -euo pipefail
+            cd msp
+            nvidia-smi --query-gpu=name,memory.total --format=csv
+            python3 -m venv --system-site-packages ~/venv      # reuse Lambda Stack torch
+            ~/venv/bin/pip install --quiet -r requirements-gpu.txt
+            ~/venv/bin/pip install --quiet --no-deps -e .
+            ~/venv/bin/python -c "import torch; print(\"torch\", torch.__version__, torch.version.cuda)"
+            ~/venv/bin/python -m msp.cli embed'
+
+      - name: Download embeddings
+        env:
+          IP: ${{ steps.launch.outputs.ip }}
+        run: rsync -az -e "ssh $SSH_OPTS" "ubuntu@$IP:msp/data/emb/" data/emb/
+
+      - run: msp sync hf-push --what emb
+
+      - name: Terminate GPU instance
+        if: always() && steps.launch.outputs.instance_id != ''
+        run: python scripts/lambda_gpu.py terminate --id "${{ steps.launch.outputs.instance_id }}"

@@ -218,3 +218,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- sentimental pipeline ---
+data/
+config.yaml
+worker/node_modules/
+worker/.wrangler/
+requirements-gpu.txt

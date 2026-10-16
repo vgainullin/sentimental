@@ -13,7 +13,7 @@ jobs:
       LAMBDA_API_KEY: ${{ secrets.LAMBDA_API_KEY }}
       GH_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-msp
       - name: Reap
         run: |

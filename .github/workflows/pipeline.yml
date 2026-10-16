@@ -46,7 +46,7 @@ jobs:
     outputs:
       keys: ${{ steps.plan.outputs.keys }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Check required configuration
         run: |
           missing=()
@@ -83,7 +83,7 @@ jobs:
       STAGES: ${{ inputs.stages || 'harvest fetch parse link chunk' }}
       MSP_GROBID_URL: http://localhost:8070
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-msp
       - name: Restore shard state from R2 (PDFs, TEI, HTTP cache, tables)
         run: msp --shard "$KEY" sync r2-pull
@@ -119,7 +119,7 @@ jobs:
     outputs:
       mode: ${{ steps.mode.outputs.mode }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-msp
       - name: Pull every shard's tables
         run: msp sync r2-pull --prefix shards --include '*/tables/*'
@@ -149,7 +149,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 340
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-msp
         with:
           extras: embed
@@ -173,7 +173,7 @@ jobs:
     env:
       CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-msp
         with:
           extras: embed
@@ -189,7 +189,7 @@ jobs:
     permissions:
       contents: write                 # push to the wiki
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-msp
       - run: msp sync hf-pull --what tables emb
       - name: Author similarity features
@@ -234,7 +234,7 @@ jobs:
     permissions:
       actions: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-msp
       - name: Terminate any orphaned Lambda instances from finished runs
         env:

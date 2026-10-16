@@ -18,7 +18,7 @@ jobs:
       LAMBDA_API_KEY: ${{ secrets.LAMBDA_API_KEY }}
       SSH_OPTS: -i ~/.ssh/lambda -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-msp
       - run: msp sync hf-pull --what tables
 

@@ -27,9 +27,9 @@ jobs:
           else
             echo "::warning::CF_API_TOKEN, CF_ACCOUNT_ID or SEARCH_TOKEN not set; skipping deploy"
           fi
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: steps.check.outputs.ok == 'true'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: steps.check.outputs.ok == 'true'
         with:
           node-version: "22"
@@ -39,7 +39,7 @@ jobs:
         working-directory: worker
       - name: Deploy
         if: steps.check.outputs.ok == 'true'
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CF_API_TOKEN }}
           accountId: ${{ secrets.CF_ACCOUNT_ID }}
